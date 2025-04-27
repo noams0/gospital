@@ -1,9 +1,9 @@
 package main
 
 import (
-	"TD06-SR05/utils"
 	"flag"
 	"fmt"
+	"gospital/utils"
 	"log"
 	"os"
 	"strconv"
