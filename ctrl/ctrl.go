@@ -71,7 +71,7 @@ func main() {
 	for {
 		fmt.Scanln(&rcvmsg)
 		time.Sleep(1 * time.Second)
-		display_d("main", "received"+rcvmsg)
+		display_d("main", "received : "+rcvmsg)
 		s_hrcv := findval(rcvmsg, "hlg")
 		if s_hrcv != "" {
 			display_d("main", "horloge reçu :"+s_hrcv)
@@ -85,8 +85,15 @@ func main() {
 		if sndmsg == "" { //si ce n'est pas formaté, ça veut dire qu'on récupère le message de l'app
 			fmt.Println(msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(h)))
 		} else {
-			display_d("main", "message msg reçu: "+sndmsg)
-			fmt.Println(sndmsg)
+			if findval(rcvmsg, "sender") == *p_nom+"-"+strconv.Itoa(pid) {
+				display_e("main", "Arret du message :"+rcvmsg)
+				continue
+			} else {
+				display_e("main", "sender :"+findval(rcvmsg, "sender"))
+				display_e("main", "sender :"+*p_nom+"-"+strconv.Itoa(pid))
+				display_d("main", "message msg reçu: "+sndmsg)
+				fmt.Println(rcvmsg)
+			}
 		}
 	}
 }

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"gospital/utils"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -28,6 +30,31 @@ func display_e(where string, what string) {
 	stderr.Printf("%s ! [%.6s %d] %-8.8s : %s\n%s", utils.ColorRed, *p_nom, pid, where, what, utils.ColorReset)
 }
 
+func findval(msg string, key string) string {
+	if len(msg) < 4 {
+		display_w("findval", "message trop court : "+msg)
+		return ""
+	}
+	sep := msg[0:1]
+	tab_allkeyvals := strings.Split(msg[1:], sep)
+
+	for _, keyval := range tab_allkeyvals {
+		if len(keyval) < 3 { // au moins 1 pour separateur, 1 pour key, 1 pour val
+			display_w("findval", "message trop court : "+msg)
+			continue
+		}
+		equ := keyval[0:1]
+		tabkeyval := strings.SplitN(keyval[1:], equ, 2)
+		if len(tabkeyval) != 2 {
+			continue
+		}
+		if tabkeyval[0] == key {
+			return tabkeyval[1]
+		}
+	}
+	return ""
+}
+
 func sendperiodic() {
 	var sndmsg string
 	var i int
@@ -37,27 +64,24 @@ func sendperiodic() {
 	for {
 		mutex.Lock()
 		i = i + 1
-		sndmsg = "message_" + strconv.Itoa(i) + "\n"
+		sndmsg = "message_" + strconv.Itoa(i) + "from" + strconv.Itoa(pid) + "\n"
+		display_d("J'ENVOIE", sndmsg)
 		fmt.Print(sndmsg)
 		mutex.Unlock()
-		time.Sleep(time.Duration(2) * time.Second)
+		time.Sleep(time.Duration(5) * time.Second)
 	}
 }
 
 func receive() {
-	var rcvmsg string
-
-	for {
-		fmt.Scanln(&rcvmsg)
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		rcvmsg := scanner.Text()
 		mutex.Lock()
 		display_w("receive", "reception <"+rcvmsg+">")
-		//for i := 1; i < 6; i++ {
-		//	display_w("receive", "traitement message"+strconv.Itoa(i))
-		//
-		//	time.Sleep(time.Duration(1) * time.Second)
-		//}
 		mutex.Unlock()
-		rcvmsg = ""
+	}
+	if err := scanner.Err(); err != nil {
+		display_e("receive", "erreur de lecture: "+err.Error())
 	}
 }
 
