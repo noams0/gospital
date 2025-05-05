@@ -8,7 +8,6 @@ import (
 	ws "gospital/websocket"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -87,17 +86,20 @@ func findval(msg string, key string) string {
 }
 
 func sendperiodic() {
-	var sndmsg string
+	//var sndmsg string
 	var i int
 
 	i = 0
 
-	for i < 5 {
+	for i < 10 {
 		mutex.Lock()
+		if *p_nom == "app_1" && i%2 == 0 {
+			fmt.Print("demandeSC\n")
+		} else if *p_nom == "app_1" {
+			fmt.Print("finSC\n")
+
+		}
 		i = i + 1
-		sndmsg = "message_" + strconv.Itoa(i) + "from" + strconv.Itoa(pid) + "\n"
-		display_d("J'ENVOIE", sndmsg)
-		fmt.Print(sndmsg)
 		mutex.Unlock()
 		time.Sleep(time.Duration(5) * time.Second)
 	}
@@ -163,9 +165,10 @@ func main() {
 	}
 
 	go func() {
-		ticker := time.NewTicker(1 * time.Second)
+		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
+
 			doctorInfo.DoctorsCount["site1"] += 1
 			doctorInfo.DoctorsCount["site2"] -= 1
 			doctorInfo.DoctorsCount["site3"] += 2

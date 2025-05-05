@@ -59,6 +59,11 @@ func display_e(where string, what string) {
 	stderr.Printf("%s ! [%.6s %d] %-8.8s : %s\n%s", utils.ColorRed, *p_nom, pid, where, what, utils.ColorReset)
 }
 
+func display_f(where string, what string) {
+
+	stderr.Printf("%s * [%.6s %d] %-8.8s : %s\n%s", utils.ColorPurple, *p_nom, pid, where, what, utils.ColorReset)
+}
+
 var p_nom *string = flag.String("n", "ecrivain", "nom")
 
 func main() {
@@ -74,34 +79,147 @@ func main() {
 		time.Sleep(1 * time.Second)
 		display_d("main", "received : "+rcvmsg)
 		rcvVC := utils.DecodeVC(findval(rcvmsg, "hlg"))
-		if len(rcvVC) != 0 {
-			display_d("main", fmt.Sprintf("horloge reçue : %#v", rcvVC))
-			for k, v := range rcvVC {
-				if _, ok := vectorClock[k]; !ok {
-					vectorClock[k] = 0
-				}
-				if v > vectorClock[k] {
-					vectorClock[k] = v
-				}
-			}
-			vectorClock[*p_nom]++
-			display_e("main", "Nouvelle horloge :"+utils.EncodeVC(vectorClock))
-		} else {
-			vectorClock[*p_nom]++
-		}
+
 		sndmsg = findval(rcvmsg, "msg")
 		if sndmsg == "" { //si ce n'est pas formaté, ça veut dire qu'on récupère le message de l'app
-			fmt.Println(msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
-		} else {
-			if findval(rcvmsg, "sender") == *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrête
-				display_e("main", "Arret du message :"+rcvmsg)
-				continue
-			} else {
-				display_e("main", "sender :"+findval(rcvmsg, "sender"))
-				display_e("main", "sender :"+*p_nom+"-"+strconv.Itoa(pid))
-				display_d("main", "message msg reçu: "+sndmsg)
-				fmt.Println(rcvmsg)
+			switch rcvmsg {
+			case "demandeSC":
+				vectorClock[*p_nom]++
+				tab[*p_nom] = Horloge{
+					Type: Requete,
+					VC:   utils.CloneVC(vectorClock),
+				}
+				display_f("demandeSC", "Demande de SC locale, horloge : "+utils.EncodeVC(vectorClock))
+				fmt.Println(msg_format("type", "request") + msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
+			case "finSC":
+				vectorClock[*p_nom]++
+				tab[*p_nom] = Horloge{
+					Type: Requete,
+					VC:   utils.CloneVC(vectorClock),
+				}
+				display_f("finSC", "Fin de SC locale, horloge : "+utils.EncodeVC(vectorClock))
+				fmt.Println(msg_format("type", "liberation") + msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
+			default:
+				fmt.Println(msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
 			}
+			//sinon, c'est un message provenant d'un ctrl
+		} else {
+			if len(rcvVC) != 0 {
+				display_d("main", fmt.Sprintf("horloge reçue : %#v", rcvVC))
+				for k, v := range rcvVC {
+					if _, ok := vectorClock[k]; !ok {
+						vectorClock[k] = 0
+					}
+					if v > vectorClock[k] {
+						vectorClock[k] = v
+					}
+				}
+				vectorClock[*p_nom]++
+				display_e("main", "Nouvelle horloge :"+utils.EncodeVC(vectorClock))
+			} else {
+				vectorClock[*p_nom]++
+			}
+
+			msg_type := findval(rcvmsg, "type")
+			sender := findval(rcvmsg, "sender")
+			//display_f("TYPE", msg_type)
+			switch msg_type {
+			case "request":
+				tab[sender] = Horloge{
+					Type: Requete,
+					VC:   utils.CloneVC(rcvVC),
+				}
+				display_f("request", "Requête reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
+				//envoyer( [accusé] hi ) à Sj
+				fmt.Println(msg_format("type", "ack") + msg_format("sender", nom) + msg_format("hlg", utils.EncodeVC(vectorClock)))
+				if tab[*p_nom].Type == "request" {
+					if isFirstRequest(tab, nom, tab[*p_nom].VC) {
+						display_f("SC", "\n ======================")
+						display_f("SC", "Entrée en SC autorisée")
+						display_f("SC", "\n ======================")
+						fmt.Print("débutSC\n")
+					}
+				}
+			case "liberation":
+				tab[sender] = Horloge{
+					Type: Liberation,
+					VC:   utils.CloneVC(rcvVC),
+				}
+				display_f("liberation", "Libération reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
+				//envoyer( [accusé] hi ) à Sj
+				if tab[*p_nom].Type == "request" {
+					if isFirstRequest(tab, nom, tab[*p_nom].VC) {
+						display_f("SC", "\n ======================")
+						display_f("SC", "Entrée en SC autorisée")
+						display_f("SC", "\n ======================")
+						fmt.Print("débutSC\n")
+					}
+				}
+				display_f("liberation", "libération reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
+			case "ack":
+
+				display_f("Accusé", "Accusé reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
+				//envoyer( [accusé] hi ) à Sj
+				if tab[*p_nom].Type == "request" {
+					if isFirstRequest(tab, nom, tab[*p_nom].VC) {
+						display_f("SC", "\n ======================")
+						display_f("SC", "Entrée en SC autorisée")
+						display_f("SC", "\n ======================")
+						fmt.Print("débutSC\n")
+					}
+				}
+				display_f("liberation", "libération reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
+			default:
+				if findval(rcvmsg, "sender") == *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrête
+					display_e("main", "Arret du message :"+rcvmsg)
+					continue
+				} else {
+					display_e("main", "sender :"+findval(rcvmsg, "sender"))
+					display_e("main", "sender :"+*p_nom+"-"+strconv.Itoa(pid))
+					display_d("main", "message msg reçu: "+sndmsg)
+					fmt.Println(rcvmsg)
+				}
+			}
+
 		}
 	}
 }
+
+func isFirstRequest(tab map[string]Horloge, me string, myVC map[string]int) bool {
+	for k, info := range tab {
+		if k == me {
+			continue
+		}
+		if info.Type == Requete {
+			if less(info.VC, k, myVC, me) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func less(vc1 map[string]int, name1 string, vc2 map[string]int, name2 string) bool {
+	// Compare (vc1, name1) < (vc2, name2)
+	v1 := vc1[name1]
+	v2 := vc2[name2]
+	if v1 != v2 {
+		return v1 < v2
+	}
+	return name1 < name2
+}
+
+type MessageType string
+
+const (
+	Requete    MessageType = "requête"
+	Liberation MessageType = "libération"
+	Accuse     MessageType = "ack"
+)
+
+type Horloge struct {
+	Type MessageType
+	VC   map[string]int
+}
+
+var tab map[string]Horloge = make(map[string]Horloge)

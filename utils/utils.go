@@ -26,6 +26,14 @@ func Display_e(stderr *log.Logger, p_nom *string, pid int, where string, what st
 	stderr.Printf("%s ! [%.6s %d] %-8.8s : %s\n%s", ColorRed, *p_nom, pid, where, what, ColorReset)
 }
 
+func CloneVC(vc map[string]int) map[string]int {
+	clone := make(map[string]int)
+	for k, v := range vc {
+		clone[k] = v
+	}
+	return clone
+}
+
 func EncodeVC(vc map[string]int) string {
 	var parts []string
 	for k, v := range vc {
