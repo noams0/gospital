@@ -116,6 +116,20 @@ func receive() {
 	}
 }
 
+type DoctorInfo struct {
+	// Structure contenant les informations des médecins
+	DoctorsCount map[string]int
+}
+
+func (d *DoctorInfo) SendDoctorInfo() string {
+	// Formatage des informations des médecins
+	info := ""
+	for site, count := range d.DoctorsCount {
+		info += fmt.Sprintf("Nombre de médecins à %s : %d\n", site, count)
+	}
+	return info
+}
+
 var mutex = &sync.Mutex{}
 
 func main() {
@@ -138,10 +152,28 @@ func main() {
 	case "app_3":
 		wsURL = ":8082"
 	default:
-		log.Fatalf("Nom inconnu pour l'auto-déduction du WebSocket : %s", *p_nom)
+		log.Fatalf("Nom inconnu pour WebSocket : %s", *p_nom)
 	}
-	go ws.StartServer(wsURL)
+	doctorInfo := &DoctorInfo{
+		DoctorsCount: map[string]int{
+			"site1": 5,
+			"site2": 3,
+			"site3": 7,
+		},
+	}
 
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			doctorInfo.DoctorsCount["site1"] += 1
+			doctorInfo.DoctorsCount["site2"] -= 1
+			doctorInfo.DoctorsCount["site3"] += 2
+		}
+	}()
+
+	// Passer l'interface à la méthode StartServer
+	go ws.StartServer(wsURL, doctorInfo)
 	go sendperiodic()
 	go receive()
 	for {
