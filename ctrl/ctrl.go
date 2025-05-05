@@ -46,8 +46,6 @@ func findval(msg string, key string) string {
 	return ""
 }
 
-var p_nom *string = flag.String("n", "ecrivain", "nom")
-
 func display_d(where string, what string) {
 	stderr.Printf("%s + [%.6s %d] %-8.8s : %s\n%s", utils.ColorBlue, *p_nom, pid, where, what, utils.ColorReset)
 }
@@ -60,10 +58,13 @@ func display_w(where string, what string) {
 func display_e(where string, what string) {
 	stderr.Printf("%s ! [%.6s %d] %-8.8s : %s\n%s", utils.ColorRed, *p_nom, pid, where, what, utils.ColorReset)
 }
+
+var p_nom *string = flag.String("n", "ecrivain", "nom")
+
 func main() {
 	var rcvmsg string
-	var h int = 0
-	var hrcv int = 0
+	var vectorClock = make(map[string]int)
+
 	var sndmsg string
 	flag.Parse()
 	nom := *p_nom + "-" + strconv.Itoa(os.Getpid())
@@ -72,20 +73,27 @@ func main() {
 		fmt.Scanln(&rcvmsg)
 		time.Sleep(1 * time.Second)
 		display_d("main", "received : "+rcvmsg)
-		s_hrcv := findval(rcvmsg, "hlg")
-		if s_hrcv != "" {
-			display_d("main", "horloge reçu :"+s_hrcv)
-			hrcv, _ = strconv.Atoi(s_hrcv)
-			h = utils.Recaler(h, hrcv)
-			display_e("main", "Nouvelle horloge :"+strconv.Itoa(h))
+		rcvVC := utils.DecodeVC(findval(rcvmsg, "hlg"))
+		if len(rcvVC) != 0 {
+			display_d("main", fmt.Sprintf("horloge reçue : %#v", rcvVC))
+			for k, v := range rcvVC {
+				if _, ok := vectorClock[k]; !ok {
+					vectorClock[k] = 0
+				}
+				if v > vectorClock[k] {
+					vectorClock[k] = v
+				}
+			}
+			vectorClock[*p_nom]++
+			display_e("main", "Nouvelle horloge :"+utils.EncodeVC(vectorClock))
 		} else {
-			h = h + 1
+			vectorClock[*p_nom]++
 		}
 		sndmsg = findval(rcvmsg, "msg")
 		if sndmsg == "" { //si ce n'est pas formaté, ça veut dire qu'on récupère le message de l'app
-			fmt.Println(msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(h)))
+			fmt.Println(msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
 		} else {
-			if findval(rcvmsg, "sender") == *p_nom+"-"+strconv.Itoa(pid) {
+			if findval(rcvmsg, "sender") == *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrête
 				display_e("main", "Arret du message :"+rcvmsg)
 				continue
 			} else {

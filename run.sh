@@ -36,9 +36,9 @@ go run ctrl/ctrl.go -n "ctrl_3" < /tmp/in_C3 > /tmp/out_C3 & pids+=($!)
 
 cd front
 
-npm run dev:8080 & pids+=($!)
-npm run dev:8081 & pids+=($!)
-npm run dev:8082 & pids+=($!)
+#npm run dev:8080 & pids+=($!)
+#npm run dev:8081 & pids+=($!)
+#npm run dev:8082 & pids+=($!)
 
 #firefox http://localhost:5173
 #firefox http://localhost:5174
