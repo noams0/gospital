@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"gospital/utils"
+	ws "gospital/websocket"
 	"log"
 	"os"
 	"strconv"
@@ -15,7 +16,37 @@ import (
 
 var pid = os.Getpid()
 var stderr = log.New(os.Stderr, "", 0)
-var p_nom *string = flag.String("n", "", "nom")
+var p_nom *string = flag.String("n", "nom", "nom")
+
+type Hospital struct {
+	name       string
+	numDoctors int
+	mu         sync.Mutex
+}
+
+var hospitalRegistry = make(map[string]*Hospital) // Répertoire des hôpitaux
+var mu = &sync.Mutex{}
+
+func registerHospital(name string) *Hospital {
+	mu.Lock()
+	defer mu.Unlock()
+	hospital := &Hospital{name: name}
+	hospitalRegistry[name] = hospital
+	return hospital
+}
+
+func updateDoctorsCount(hospital *Hospital, count int) {
+	hospital.mu.Lock()
+	defer hospital.mu.Unlock()
+	hospital.numDoctors = count
+	//fmt.Printf("Mise à jour du nombre de médecins pour %s: %d\n", hospital.name, hospital.numDoctors)
+}
+
+func getDoctorsCount(hospital *Hospital) int {
+	hospital.mu.Lock()
+	defer hospital.mu.Unlock()
+	return hospital.numDoctors
+}
 
 func display_d(where string, what string) {
 	stderr.Printf("%s + [%.6s %d] %-8.8s : %s\n%s", utils.ColorBlue, *p_nom, pid, where, what, utils.ColorReset)
@@ -61,7 +92,7 @@ func sendperiodic() {
 
 	i = 0
 
-	for {
+	for i < 5 {
 		mutex.Lock()
 		i = i + 1
 		sndmsg = "message_" + strconv.Itoa(i) + "from" + strconv.Itoa(pid) + "\n"
@@ -88,6 +119,29 @@ func receive() {
 var mutex = &sync.Mutex{}
 
 func main() {
+
+	flag.Parse()
+
+	hospitalA := registerHospital("HospitalA")
+	hospitalB := registerHospital("HospitalB")
+
+	// Mise à jour du nombre de médecins
+	updateDoctorsCount(hospitalA, 5)
+	updateDoctorsCount(hospitalB, 3)
+
+	var wsURL string
+	switch *p_nom {
+	case "app_1":
+		wsURL = ":8080"
+	case "app_2":
+		wsURL = ":8081"
+	case "app_3":
+		wsURL = ":8082"
+	default:
+		log.Fatalf("Nom inconnu pour l'auto-déduction du WebSocket : %s", *p_nom)
+	}
+	go ws.StartServer(wsURL)
+
 	go sendperiodic()
 	go receive()
 	for {
