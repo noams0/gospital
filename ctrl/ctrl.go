@@ -112,7 +112,8 @@ func (c *Controller) HandleMessage() {
 		fmt.Scanln(&rcvmsg)
 		time.Sleep(1 * time.Second)
 		display_d("main", "received : "+rcvmsg)
-		rcvVC := utils.DecodeVC(findval(rcvmsg, "hlg"))
+		rcvVC := utils.DecodeVC(findval(rcvmsg, "VC"))
+		rcvHLG, _ := strconv.Atoi(findval(rcvmsg, "hlg"))
 
 		sndmsg = findval(rcvmsg, "msg")
 		if sndmsg == "" { //si ce n'est pas formaté, ça veut dire qu'on récupère le message de l'app
@@ -150,10 +151,11 @@ func (c *Controller) HandleMessage() {
 					}
 				}
 				c.VectorClock[*p_nom]++
-				display_e("main", "Nouvelle horloge :"+utils.EncodeVC(c.VectorClock))
+				//display_e("main", "Nouvelle horloge :"+utils.Encodehorloge(c.VectorClock))
 			} else {
 				c.VectorClock[*p_nom]++
 			}
+			c.Horloge = max(rcvHLG, c.Horloge) + 1
 
 			msg_type := findval(rcvmsg, "type")
 			sender := findval(rcvmsg, "sender")
@@ -163,12 +165,14 @@ func (c *Controller) HandleMessage() {
 				if sender != *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrêt
 					tab[sender] = EtatReqSite{
 						TypeRequete: Requete,
-						Horloge:     c.Horloge,
+						Horloge:     rcvHLG,
 					}
-					display_f("request", "Requête reçue de "+sender+" | VC="+strconv.Itoa(c.Horloge))
+					display_f("request", "Requête reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
 					//envoyer( [accusé] hi ) à Sj
 					fmt.Println(rcvmsg)
 					display_f("request", rcvmsg)
+					display_f("request", fmt.Sprintf("mon tab %#v", tab))
+
 					fmt.Println(msg_format("destinator", sender) + msg_format("msg", "ack") + msg_format("type", "ack") + msg_format("sender", c.Nom) + msg_format("hlg", strconv.Itoa(c.Horloge)))
 					if tab[c.Nom].TypeRequete == "request" {
 						if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
@@ -182,9 +186,13 @@ func (c *Controller) HandleMessage() {
 			case "liberation":
 				tab[sender] = EtatReqSite{
 					TypeRequete: Liberation,
-					Horloge:     c.Horloge,
+					Horloge:     rcvHLG,
 				}
-				display_f("liberation", "Libération reçue de "+sender+" | VC="+strconv.Itoa(c.Horloge))
+
+				display_f("liberation", "Libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
+
+				display_f("liberation", fmt.Sprintf("mon tab %#v", tab))
+
 				//envoyer( [accusé] hi ) à Sj
 				if tab[c.Nom].TypeRequete == "request" {
 					if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
@@ -194,10 +202,20 @@ func (c *Controller) HandleMessage() {
 						fmt.Print("débutSC\n")
 					}
 				}
-				display_f("liberation", "libération reçue de "+sender+" | VC="+strconv.Itoa(c.Horloge))
+				display_f("liberation", "libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
 			case "ack":
 				if findval(rcvmsg, "destinator") == *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrête
-					display_f("Accusé", "Accusé reçue de "+sender+" | VC="+strconv.Itoa(c.Horloge))
+
+					if tab[sender].TypeRequete != "request" {
+						tab[sender] = EtatReqSite{
+							TypeRequete: Accuse,
+							Horloge:     rcvHLG,
+						}
+					}
+
+					display_f("Accusé", "Accusé reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
+					display_f("Accusé", fmt.Sprintf("mon tab %#v", tab))
+
 					//envoyer( [accusé] hi ) à Sj
 					if tab[c.Nom].TypeRequete == "request" {
 						if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
