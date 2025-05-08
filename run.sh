@@ -39,9 +39,9 @@ npm run dev:8080 & pids+=($!)
 npm run dev:8081 & pids+=($!)
 npm run dev:8082 & pids+=($!)
 
-firefox http://localhost:5173
-firefox http://localhost:5174
-firefox http://localhost:5175
+#firefox http://localhost:5173
+#firefox http://localhost:5174
+#firefox http://localhost:5175
 
 cd ..
 
