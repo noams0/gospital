@@ -11,17 +11,34 @@ import (
 	"time"
 )
 
+type MessageType string
+
+const (
+	Requete    MessageType = "requête"
+	Liberation MessageType = "libération"
+	Accuse     MessageType = "ack"
+)
+
+type EtatReqSite struct {
+	Horloge     int
+	TypeRequete MessageType
+}
+
+var tab map[string]EtatReqSite = make(map[string]EtatReqSite)
+
 type Controller struct {
 	Nom         string
+	Horloge     int
 	VectorClock map[string]int
-	Tab         map[string]Horloge
+	Tab         map[string]EtatReqSite
 }
 
 func NewController(nom string) *Controller {
 	return &Controller{
 		Nom:         nom,
+		Horloge:     0,
 		VectorClock: make(map[string]int),
-		Tab:         make(map[string]Horloge),
+		Tab:         make(map[string]EtatReqSite),
 	}
 }
 
@@ -81,16 +98,16 @@ func display_f(where string, what string) {
 var p_nom *string = flag.String("n", "ecrivain", "nom")
 
 func main() {
+	flag.Parse()
+
 	nom := *p_nom + "-" + strconv.Itoa(os.Getpid())
 	ctrl := NewController(nom)
 	ctrl.HandleMessage()
 }
 func (c *Controller) HandleMessage() {
 	var rcvmsg string
-	var vectorClock = make(map[string]int)
 
 	var sndmsg string
-	flag.Parse()
 	for {
 		fmt.Scanln(&rcvmsg)
 		time.Sleep(1 * time.Second)
@@ -101,41 +118,41 @@ func (c *Controller) HandleMessage() {
 		if sndmsg == "" { //si ce n'est pas formaté, ça veut dire qu'on récupère le message de l'app
 			switch rcvmsg {
 			case "demandeSC":
-				vectorClock[*p_nom]++
-				tab[*p_nom] = Horloge{
-					Type: Requete,
-					VC:   utils.CloneVC(vectorClock),
+				c.Horloge++
+				tab[*p_nom] = EtatReqSite{
+					TypeRequete: Requete,
+					Horloge:     c.Horloge,
 				}
-				display_f("demandeSC", "Demande de SC locale, horloge : "+utils.EncodeVC(vectorClock))
-				fmt.Println(msg_format("type", "request") + msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
+				display_f("demandeSC", "Demande de SC locale, horloge : "+strconv.Itoa(c.Horloge))
+				fmt.Println(msg_format("type", "request") + msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
 			case "finSC":
-				vectorClock[*p_nom]++
-				tab[*p_nom] = Horloge{
-					Type: Requete,
-					VC:   utils.CloneVC(vectorClock),
+				c.Horloge++
+				tab[*p_nom] = EtatReqSite{
+					TypeRequete: Liberation,
+					Horloge:     c.Horloge,
 				}
-				display_f("finSC", "Fin de SC locale, horloge : "+utils.EncodeVC(vectorClock))
+				display_f("finSC", "Fin de SC locale, horloge : "+strconv.Itoa(c.Horloge))
 				//fmt.Println(msg_format("type", "liberation") + msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
 			default:
-				fmt.Println(msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
+				fmt.Println(msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
 			}
-			//sinon, c'est un message provenant d'un ctrl
 
+			//sinon, c'est un message provenant d'un ctrly
 		} else {
 			if len(rcvVC) != 0 {
 				display_d("main", fmt.Sprintf("horloge reçue : %#v", rcvVC))
 				for k, v := range rcvVC {
-					if _, ok := vectorClock[k]; !ok {
-						vectorClock[k] = 0
+					if _, ok := c.VectorClock[k]; !ok {
+						c.VectorClock[k] = 0
 					}
-					if v > vectorClock[k] {
-						vectorClock[k] = v
+					if v > c.VectorClock[k] {
+						c.VectorClock[k] = v
 					}
 				}
-				vectorClock[*p_nom]++
-				display_e("main", "Nouvelle horloge :"+utils.EncodeVC(vectorClock))
+				c.VectorClock[*p_nom]++
+				display_e("main", "Nouvelle horloge :"+utils.EncodeVC(c.VectorClock))
 			} else {
-				vectorClock[*p_nom]++
+				c.VectorClock[*p_nom]++
 			}
 
 			msg_type := findval(rcvmsg, "type")
@@ -144,17 +161,17 @@ func (c *Controller) HandleMessage() {
 			switch msg_type {
 			case "request":
 				if sender != *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrêt
-					tab[sender] = Horloge{
-						Type: Requete,
-						VC:   utils.CloneVC(rcvVC),
+					tab[sender] = EtatReqSite{
+						TypeRequete: Requete,
+						Horloge:     c.Horloge,
 					}
-					display_f("request", "Requête reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
+					display_f("request", "Requête reçue de "+sender+" | VC="+strconv.Itoa(c.Horloge))
 					//envoyer( [accusé] hi ) à Sj
 					fmt.Println(rcvmsg)
 					display_f("request", rcvmsg)
-					fmt.Println(msg_format("destinator", sender) + msg_format("msg", "ack") + msg_format("type", "ack") + msg_format("sender", c.Nom) + msg_format("hlg", utils.EncodeVC(vectorClock)))
-					if tab[*p_nom].Type == "request" {
-						if isFirstRequest(tab, c.Nom, tab[*p_nom].VC) {
+					fmt.Println(msg_format("destinator", sender) + msg_format("msg", "ack") + msg_format("type", "ack") + msg_format("sender", c.Nom) + msg_format("hlg", strconv.Itoa(c.Horloge)))
+					if tab[c.Nom].TypeRequete == "request" {
+						if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
 							display_f("SC", "\n ======================")
 							display_f("SC", "Entrée en SC autorisée")
 							display_f("SC", "\n ======================")
@@ -163,27 +180,27 @@ func (c *Controller) HandleMessage() {
 					}
 				}
 			case "liberation":
-				tab[sender] = Horloge{
-					Type: Liberation,
-					VC:   utils.CloneVC(rcvVC),
+				tab[sender] = EtatReqSite{
+					TypeRequete: Liberation,
+					Horloge:     c.Horloge,
 				}
-				display_f("liberation", "Libération reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
+				display_f("liberation", "Libération reçue de "+sender+" | VC="+strconv.Itoa(c.Horloge))
 				//envoyer( [accusé] hi ) à Sj
-				if tab[*p_nom].Type == "request" {
-					if isFirstRequest(tab, c.Nom, tab[*p_nom].VC) {
+				if tab[c.Nom].TypeRequete == "request" {
+					if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
 						display_f("SC", "\n ======================")
 						display_f("SC", "Entrée en SC autorisée")
 						display_f("SC", "\n ======================")
 						fmt.Print("débutSC\n")
 					}
 				}
-				display_f("liberation", "libération reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
+				display_f("liberation", "libération reçue de "+sender+" | VC="+strconv.Itoa(c.Horloge))
 			case "ack":
 				if findval(rcvmsg, "destinator") == *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrête
-					display_f("Accusé", "Accusé reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
+					display_f("Accusé", "Accusé reçue de "+sender+" | VC="+strconv.Itoa(c.Horloge))
 					//envoyer( [accusé] hi ) à Sj
-					if tab[*p_nom].Type == "request" {
-						if isFirstRequest(tab, c.Nom, tab[*p_nom].VC) {
+					if tab[c.Nom].TypeRequete == "request" {
+						if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
 							display_f("SC", "\n ======================")
 							display_f("SC", "Entrée en SC autorisée")
 							display_f("SC", "\n ======================")
@@ -210,13 +227,13 @@ func (c *Controller) HandleMessage() {
 	}
 }
 
-func isFirstRequest(tab map[string]Horloge, me string, myVC map[string]int) bool {
+func isFirstRequest(tab map[string]EtatReqSite, me string, h int) bool {
 	for k, info := range tab {
 		if k == me {
 			continue
 		}
-		if info.Type == Requete {
-			if less(info.VC, k, myVC, me) {
+		if info.TypeRequete == Requete {
+			if info.Horloge < h {
 				return false
 			}
 		}
@@ -233,18 +250,3 @@ func less(vc1 map[string]int, name1 string, vc2 map[string]int, name2 string) bo
 	}
 	return name1 < name2
 }
-
-type MessageType string
-
-const (
-	Requete    MessageType = "requête"
-	Liberation MessageType = "libération"
-	Accuse     MessageType = "ack"
-)
-
-type Horloge struct {
-	Type MessageType
-	VC   map[string]int
-}
-
-var tab map[string]Horloge = make(map[string]Horloge)
