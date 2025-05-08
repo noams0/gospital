@@ -14,7 +14,7 @@ import (
 type MessageType string
 
 const (
-	Requete    MessageType = "requête"
+	Requete    MessageType = "request"
 	Liberation MessageType = "libération"
 	Accuse     MessageType = "ack"
 )
@@ -31,6 +31,7 @@ type Controller struct {
 	Horloge     int
 	VectorClock map[string]int
 	Tab         map[string]EtatReqSite
+	IsInSection bool
 }
 
 func NewController(nom string) *Controller {
@@ -39,6 +40,7 @@ func NewController(nom string) *Controller {
 		Horloge:     0,
 		VectorClock: make(map[string]int),
 		Tab:         make(map[string]EtatReqSite),
+		IsInSection: false,
 	}
 }
 
@@ -120,7 +122,7 @@ func (c *Controller) HandleMessage() {
 			switch rcvmsg {
 			case "demandeSC":
 				c.Horloge++
-				tab[*p_nom] = EtatReqSite{
+				tab[c.Nom] = EtatReqSite{
 					TypeRequete: Requete,
 					Horloge:     c.Horloge,
 				}
@@ -132,6 +134,7 @@ func (c *Controller) HandleMessage() {
 					TypeRequete: Liberation,
 					Horloge:     c.Horloge,
 				}
+				c.IsInSection = false
 				display_f("finSC", "Fin de SC locale, horloge : "+strconv.Itoa(c.Horloge))
 				//fmt.Println(msg_format("type", "liberation") + msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
 			default:
@@ -174,8 +177,9 @@ func (c *Controller) HandleMessage() {
 					display_f("request", fmt.Sprintf("mon tab %#v", tab))
 
 					fmt.Println(msg_format("destinator", sender) + msg_format("msg", "ack") + msg_format("type", "ack") + msg_format("sender", c.Nom) + msg_format("hlg", strconv.Itoa(c.Horloge)))
-					if tab[c.Nom].TypeRequete == "request" {
+					if tab[c.Nom].TypeRequete == "request" && !c.IsInSection {
 						if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
+							c.IsInSection = true
 							display_f("SC", "\n ======================")
 							display_f("SC", "Entrée en SC autorisée")
 							display_f("SC", "\n ======================")
@@ -194,8 +198,9 @@ func (c *Controller) HandleMessage() {
 				display_f("liberation", fmt.Sprintf("mon tab %#v", tab))
 
 				//envoyer( [accusé] hi ) à Sj
-				if tab[c.Nom].TypeRequete == "request" {
+				if tab[c.Nom].TypeRequete == "request" && !c.IsInSection {
 					if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
+						c.IsInSection = true
 						display_f("SC", "\n ======================")
 						display_f("SC", "Entrée en SC autorisée")
 						display_f("SC", "\n ======================")
@@ -204,8 +209,7 @@ func (c *Controller) HandleMessage() {
 				}
 				display_f("liberation", "libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
 			case "ack":
-				if findval(rcvmsg, "destinator") == *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrête
-
+				if findval(rcvmsg, "destinator") == *p_nom+"-"+strconv.Itoa(pid) {
 					if tab[sender].TypeRequete != "request" {
 						tab[sender] = EtatReqSite{
 							TypeRequete: Accuse,
@@ -217,8 +221,11 @@ func (c *Controller) HandleMessage() {
 					display_f("Accusé", fmt.Sprintf("mon tab %#v", tab))
 
 					//envoyer( [accusé] hi ) à Sj
-					if tab[c.Nom].TypeRequete == "request" {
+					if tab[c.Nom].TypeRequete == "request" && !c.IsInSection {
+						display_f("TENTATIVE", "Je vais tenter de voir si je suis le premier")
+
 						if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
+							c.IsInSection = true
 							display_f("SC", "\n ======================")
 							display_f("SC", "Entrée en SC autorisée")
 							display_f("SC", "\n ======================")
@@ -248,12 +255,17 @@ func (c *Controller) HandleMessage() {
 func isFirstRequest(tab map[string]EtatReqSite, me string, h int) bool {
 	for k, info := range tab {
 		if k == me {
+			display_f("TENTATIVE", "c'est moi, je passe")
 			continue
 		}
 		if info.TypeRequete == Requete {
 			if info.Horloge < h {
+				display_f("TENTATIVE RATEE", fmt.Sprintf("ca passe pas pour %d >= %d", info.Horloge, h))
+
 				return false
 			}
+			display_f("TENTATIVE", fmt.Sprintf("ca passe pour %d >= %d", info.Horloge, h))
+
 		}
 	}
 	return true
