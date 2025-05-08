@@ -1,13 +1,20 @@
-<script setup>
+<script setup
+
+>function demanderSectionCritique() {
+    console.log("demandeSC")
+    const message = {
+      type: "demandeSC",
+    }
+  socket.send(JSON.stringify(message))}
+
 import { onMounted, onUnmounted, ref } from 'vue'
 
-// URL de la WebSocket (tu peux la rendre dynamique si besoin)
 const wsUrl = import.meta.env.VITE_APP_WS_URL;
-console.log(wsUrl); // Affiche le wsUrl pour confirmation
+console.log(wsUrl);
 
 console.log(wsUrl)
 
-const messages = ref([]) // Stocke les messages reçus
+const messages = ref([])
 
 let socket = null
 
@@ -41,6 +48,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <button @click="demanderSectionCritique()">Demander SC</button>
   <header>
     <h1>Messages reçus</h1>
   </header>

@@ -175,11 +175,16 @@ func main() {
 		}
 	}()
 
+	actions := make(chan map[string]interface{}, 10)
+
 	// Passer l'interface à la méthode StartServer
-	go ws.StartServer(wsURL, doctorInfo)
-	go sendperiodic()
+	go ws.StartServer(wsURL, doctorInfo, actions)
+	//go sendperiodic()
 	go receive()
-	for {
-		time.Sleep(time.Duration(60) * time.Second)
-	} // Pour attendre la fin des goroutines...
+
+	for action := range actions {
+		if action["type"] == "demandeSC" {
+			fmt.Print("demandeSC\n")
+		}
+	}
 }

@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -18,7 +19,7 @@ type DoctorInfoSender interface {
 }
 
 // handleWS gère la connexion WebSocket pour chaque client
-func handleWS(w http.ResponseWriter, r *http.Request, addr string, infoSender DoctorInfoSender) {
+func handleWS(w http.ResponseWriter, r *http.Request, addr string, infoSender DoctorInfoSender, actions chan map[string]interface{}) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		http.Error(w, "WebSocket upgrade failed", http.StatusInternalServerError)
@@ -28,10 +29,23 @@ func handleWS(w http.ResponseWriter, r *http.Request, addr string, infoSender Do
 
 	//fmt.Println("Client connecté")
 
-	// Exemple : envoyer un message toutes les 2 secondes
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
+	go func() {
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			var action map[string]interface{}
 
+			if err := json.Unmarshal(msg, &action); err != nil {
+				println("Invalid message format:", string(msg))
+				return
+			}
+			actions <- action
+		}
+	}()
 	for {
 		select {
 		case <-ticker.C:
@@ -46,10 +60,9 @@ func handleWS(w http.ResponseWriter, r *http.Request, addr string, infoSender Do
 }
 
 // StartServer démarre le serveur WebSocket à l'adresse spécifiée
-func StartServer(address string, infoSender DoctorInfoSender) {
+func StartServer(address string, infoSender DoctorInfoSender, actions chan map[string]interface{}) {
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		// Appeler la fonction avec un paramètre
-		handleWS(w, r, address, infoSender)
+		handleWS(w, r, address, infoSender, actions)
 	})
 	//fmt.Printf("WebSocket en écoute sur %s/ws\n", address)
 	if err := http.ListenAndServe(address, nil); err != nil {

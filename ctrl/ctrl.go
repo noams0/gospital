@@ -98,7 +98,7 @@ func main() {
 					VC:   utils.CloneVC(vectorClock),
 				}
 				display_f("finSC", "Fin de SC locale, horloge : "+utils.EncodeVC(vectorClock))
-				fmt.Println(msg_format("type", "liberation") + msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
+				//fmt.Println(msg_format("type", "liberation") + msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
 			default:
 				fmt.Println(msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
 			}
@@ -131,7 +131,9 @@ func main() {
 				}
 				display_f("request", "Requête reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
 				//envoyer( [accusé] hi ) à Sj
-				fmt.Println(msg_format("type", "ack") + msg_format("sender", nom) + msg_format("hlg", utils.EncodeVC(vectorClock)))
+				fmt.Println(rcvmsg)
+				display_f("request", rcvmsg)
+				fmt.Println(msg_format("destinator", sender) + msg_format("msg", "ack") + msg_format("type", "ack") + msg_format("sender", nom) + msg_format("hlg", utils.EncodeVC(vectorClock)))
 				if tab[*p_nom].Type == "request" {
 					if isFirstRequest(tab, nom, tab[*p_nom].VC) {
 						display_f("SC", "\n ======================")
@@ -139,6 +141,7 @@ func main() {
 						display_f("SC", "\n ======================")
 						fmt.Print("débutSC\n")
 					}
+
 				}
 			case "liberation":
 				tab[sender] = Horloge{
@@ -157,18 +160,20 @@ func main() {
 				}
 				display_f("liberation", "libération reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
 			case "ack":
-
-				display_f("Accusé", "Accusé reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
-				//envoyer( [accusé] hi ) à Sj
-				if tab[*p_nom].Type == "request" {
-					if isFirstRequest(tab, nom, tab[*p_nom].VC) {
-						display_f("SC", "\n ======================")
-						display_f("SC", "Entrée en SC autorisée")
-						display_f("SC", "\n ======================")
-						fmt.Print("débutSC\n")
+				if findval(rcvmsg, "destinator") == *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrête
+					display_f("Accusé", "Accusé reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
+					//envoyer( [accusé] hi ) à Sj
+					if tab[*p_nom].Type == "request" {
+						if isFirstRequest(tab, nom, tab[*p_nom].VC) {
+							display_f("SC", "\n ======================")
+							display_f("SC", "Entrée en SC autorisée")
+							display_f("SC", "\n ======================")
+							fmt.Print("débutSC\n")
+						}
+					} else {
+						fmt.Println(rcvmsg)
 					}
 				}
-				display_f("liberation", "libération reçue de "+sender+" | VC="+utils.EncodeVC(vectorClock))
 			default:
 				if findval(rcvmsg, "sender") == *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrête
 					display_e("main", "Arret du message :"+rcvmsg)
