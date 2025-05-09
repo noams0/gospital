@@ -15,7 +15,7 @@ type MessageType string
 
 const (
 	Requete    MessageType = "request"
-	Liberation MessageType = "libération"
+	Liberation MessageType = "liberation"
 	Accuse     MessageType = "ack"
 )
 
@@ -120,6 +120,8 @@ func (c *Controller) HandleMessage() {
 		sndmsg = findval(rcvmsg, "msg")
 		if sndmsg == "" { //si ce n'est pas formaté, ça veut dire qu'on récupère le message de l'app
 			switch rcvmsg {
+			case "debutSC":
+				display_f("NOT", "for me")
 			case "demandeSC":
 				c.Horloge++
 				tab[c.Nom] = EtatReqSite{
@@ -127,21 +129,21 @@ func (c *Controller) HandleMessage() {
 					Horloge:     c.Horloge,
 				}
 				display_f("demandeSC", "Demande de SC locale, horloge : "+strconv.Itoa(c.Horloge))
-				fmt.Println(msg_format("type", "request") + msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
+				fmt.Println(msg_format("type", string(Requete)) + msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
 			case "finSC":
 				c.Horloge++
-				tab[*p_nom] = EtatReqSite{
+				tab[c.Nom] = EtatReqSite{
 					TypeRequete: Liberation,
 					Horloge:     c.Horloge,
 				}
 				c.IsInSection = false
 				display_f("finSC", "Fin de SC locale, horloge : "+strconv.Itoa(c.Horloge))
-				//fmt.Println(msg_format("type", "liberation") + msg_format("sender", nom) + msg_format("msg", rcvmsg) + msg_format("hlg", utils.EncodeVC(vectorClock)))
+				fmt.Println(msg_format("type", "liberation") + msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
 			default:
 				fmt.Println(msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
 			}
 
-			//sinon, c'est un message provenant d'un ctrly
+			//sinon, c'est un message provenant d'un ctrl
 		} else {
 			if len(rcvVC) != 0 {
 				display_d("main", fmt.Sprintf("horloge reçue : %#v", rcvVC))
@@ -164,64 +166,63 @@ func (c *Controller) HandleMessage() {
 			sender := findval(rcvmsg, "sender")
 			//display_f("TYPE", msg_type)
 			switch msg_type {
-			case "request":
+			case string(Requete):
 				if sender != *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrêt
 					tab[sender] = EtatReqSite{
 						TypeRequete: Requete,
 						Horloge:     rcvHLG,
 					}
-					display_f("request", "Requête reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
+					display_f(string(Requete), "Requête reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
 					//envoyer( [accusé] hi ) à Sj
+					display_f(string(Requete), rcvmsg)
+					display_f(string(Requete), fmt.Sprintf("mon tab %#v", tab))
 					fmt.Println(rcvmsg)
-					display_f("request", rcvmsg)
-					display_f("request", fmt.Sprintf("mon tab %#v", tab))
 
 					fmt.Println(msg_format("destinator", sender) + msg_format("msg", "ack") + msg_format("type", "ack") + msg_format("sender", c.Nom) + msg_format("hlg", strconv.Itoa(c.Horloge)))
-					if tab[c.Nom].TypeRequete == "request" && !c.IsInSection {
+					if tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
 						if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
 							c.IsInSection = true
 							display_f("SC", "\n ======================")
 							display_f("SC", "Entrée en SC autorisée")
 							display_f("SC", "\n ======================")
-							fmt.Print("débutSC\n")
+							fmt.Print("debutSC\n")
 						}
 					}
 				}
-			case "liberation":
-				tab[sender] = EtatReqSite{
-					TypeRequete: Liberation,
-					Horloge:     rcvHLG,
-				}
-
-				display_f("liberation", "Libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
-
-				display_f("liberation", fmt.Sprintf("mon tab %#v", tab))
-
-				//envoyer( [accusé] hi ) à Sj
-				if tab[c.Nom].TypeRequete == "request" && !c.IsInSection {
-					if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
-						c.IsInSection = true
-						display_f("SC", "\n ======================")
-						display_f("SC", "Entrée en SC autorisée")
-						display_f("SC", "\n ======================")
-						fmt.Print("débutSC\n")
+			case string(Liberation):
+				if sender != *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrêt
+					tab[sender] = EtatReqSite{
+						TypeRequete: Liberation,
+						Horloge:     rcvHLG,
 					}
+					display_f("liberation", "Libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
+					display_f("liberation", fmt.Sprintf("mon tab %#v", tab))
+					fmt.Println(rcvmsg)
+					//envoyer( [accusé] hi ) à Sj
+					if tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
+						if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
+							c.IsInSection = true
+							display_f("SC", "\n ======================")
+							display_f("SC", "Entrée en SC autorisée")
+							display_f("SC", "\n ======================")
+							fmt.Print("debutSC\n")
+						}
+					}
+					display_f("liberation", "libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
 				}
-				display_f("liberation", "libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
 			case "ack":
 				if findval(rcvmsg, "destinator") == *p_nom+"-"+strconv.Itoa(pid) {
-					if tab[sender].TypeRequete != "request" {
+					if tab[sender].TypeRequete != Requete {
 						tab[sender] = EtatReqSite{
 							TypeRequete: Accuse,
 							Horloge:     rcvHLG,
 						}
 					}
-
 					display_f("Accusé", "Accusé reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
 					display_f("Accusé", fmt.Sprintf("mon tab %#v", tab))
 
 					//envoyer( [accusé] hi ) à Sj
-					if tab[c.Nom].TypeRequete == "request" && !c.IsInSection {
+					if tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
 						display_f("TENTATIVE", "Je vais tenter de voir si je suis le premier")
 
 						if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
@@ -229,7 +230,7 @@ func (c *Controller) HandleMessage() {
 							display_f("SC", "\n ======================")
 							display_f("SC", "Entrée en SC autorisée")
 							display_f("SC", "\n ======================")
-							fmt.Print("débutSC\n")
+							fmt.Print("debutSC\n")
 						}
 					}
 				} else {

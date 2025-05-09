@@ -15,7 +15,7 @@ var upgrader = websocket.Upgrader{
 }
 
 type DoctorInfoSender interface {
-	SendDoctorInfo() string
+	SendDoctorInfo() map[string]int
 }
 
 // handleWS gère la connexion WebSocket pour chaque client
@@ -49,12 +49,11 @@ func handleWS(w http.ResponseWriter, r *http.Request, addr string, infoSender Do
 	for {
 		select {
 		case <-ticker.C:
-			message := infoSender.SendDoctorInfo()
 			//message := fmt.Sprintf("Heure serveur : %s", t.Format("15:04:05")) + "from adress" + addr
-			if err := conn.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
-				//fmt.Println("Client déconnecté")
-				return
-			}
+			data := infoSender.SendDoctorInfo() // map[string]int
+			jsonData, _ := json.Marshal(data)
+			conn.WriteMessage(websocket.TextMessage, jsonData)
+
 		}
 	}
 }

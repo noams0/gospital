@@ -16,46 +16,16 @@ import (
 var pid = os.Getpid()
 var stderr = log.New(os.Stderr, "", 0)
 var p_nom *string = flag.String("n", "nom", "nom")
+var globalMutex = &sync.Mutex{}
 
-type Hospital struct {
-	name       string
-	numDoctors int
-	mu         sync.Mutex
-}
-
-var hospitalRegistry = make(map[string]*Hospital) // Répertoire des hôpitaux
 var mu = &sync.Mutex{}
-
-func registerHospital(name string) *Hospital {
-	mu.Lock()
-	defer mu.Unlock()
-	hospital := &Hospital{name: name}
-	hospitalRegistry[name] = hospital
-	return hospital
-}
-
-func updateDoctorsCount(hospital *Hospital, count int) {
-	hospital.mu.Lock()
-	defer hospital.mu.Unlock()
-	hospital.numDoctors = count
-	//fmt.Printf("Mise à jour du nombre de médecins pour %s: %d\n", hospital.name, hospital.numDoctors)
-}
-
-func getDoctorsCount(hospital *Hospital) int {
-	hospital.mu.Lock()
-	defer hospital.mu.Unlock()
-	return hospital.numDoctors
-}
 
 func display_d(where string, what string) {
 	stderr.Printf("%s + [%.6s %d] %-8.8s : %s\n%s", utils.ColorBlue, *p_nom, pid, where, what, utils.ColorReset)
 }
-
 func display_w(where string, what string) {
-
 	stderr.Printf("%s * [%.6s %d] %-8.8s : %s\n%s", utils.ColorYellow, *p_nom, pid, where, what, utils.ColorReset)
 }
-
 func display_e(where string, what string) {
 	stderr.Printf("%s ! [%.6s %d] %-8.8s : %s\n%s", utils.ColorRed, *p_nom, pid, where, what, utils.ColorReset)
 }
@@ -69,8 +39,8 @@ func findval(msg string, key string) string {
 	tab_allkeyvals := strings.Split(msg[1:], sep)
 
 	for _, keyval := range tab_allkeyvals {
-		if len(keyval) < 3 { // au moins 1 pour separateur, 1 pour key, 1 pour val
-			display_w("findval", "message trop court : "+msg)
+		if len(keyval) < 3 {
+			display_w("findval", "clé-valeur trop courte : "+keyval)
 			continue
 		}
 		equ := keyval[0:1]
@@ -85,68 +55,58 @@ func findval(msg string, key string) string {
 	return ""
 }
 
-func sendperiodic() {
-	//var sndmsg string
-	var i int
+type DoctorInfo struct {
+	DoctorsCount map[string]int
+}
 
-	i = 0
+func (d *DoctorInfo) SendDoctorInfo() map[string]int {
+	return d.DoctorsCount
+}
 
-	for i < 10 {
-		mutex.Lock()
-		if *p_nom == "app_1" && i%2 == 0 {
-			fmt.Print("demandeSC\n")
-		} else if *p_nom == "app_1" {
-			fmt.Print("finSC\n")
+// Struct App
+type App struct {
+	name       string
+	doctorInfo *DoctorInfo
+	actions    chan map[string]interface{}
+	waitingSC  bool
+	inSC       bool
+}
 
-		}
-		i = i + 1
-		mutex.Unlock()
-		time.Sleep(time.Duration(5) * time.Second)
+func NewApp(name string) *App {
+	return &App{
+		name: name,
+		doctorInfo: &DoctorInfo{
+			DoctorsCount: map[string]int{
+				"app_1": 5,
+				"app_2": 3,
+				"app_3": 7,
+			},
+		},
+		actions:   make(chan map[string]interface{}, 10),
+		waitingSC: false,
 	}
 }
 
-func receive() {
+func (a *App) receive() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-		rcvmsg := scanner.Text()
-		mutex.Lock()
-		display_w("receive", "reception <"+rcvmsg+">")
-		mutex.Unlock()
+		msg := scanner.Text()
+		globalMutex.Lock()
+		display_w("receive", "reception <"+msg+">")
+		if msg == "debutSC" && a.waitingSC {
+			a.inSC = true
+			a.waitingSC = false
+		}
+		globalMutex.Unlock()
 	}
 	if err := scanner.Err(); err != nil {
 		display_e("receive", "erreur de lecture: "+err.Error())
 	}
 }
 
-type DoctorInfo struct {
-	// Structure contenant les informations des médecins
-	DoctorsCount map[string]int
-}
-
-func (d *DoctorInfo) SendDoctorInfo() string {
-	// Formatage des informations des médecins
-	info := ""
-	for site, count := range d.DoctorsCount {
-		info += fmt.Sprintf("Nombre de médecins à %s : %d\n", site, count)
-	}
-	return info
-}
-
-var mutex = &sync.Mutex{}
-
-func main() {
-
-	flag.Parse()
-
-	hospitalA := registerHospital("HospitalA")
-	hospitalB := registerHospital("HospitalB")
-
-	// Mise à jour du nombre de médecins
-	updateDoctorsCount(hospitalA, 5)
-	updateDoctorsCount(hospitalB, 3)
-
+func (a *App) run() {
 	var wsURL string
-	switch *p_nom {
+	switch a.name {
 	case "app_1":
 		wsURL = ":8080"
 	case "app_2":
@@ -154,37 +114,27 @@ func main() {
 	case "app_3":
 		wsURL = ":8082"
 	default:
-		log.Fatalf("Nom inconnu pour WebSocket : %s", *p_nom)
-	}
-	doctorInfo := &DoctorInfo{
-		DoctorsCount: map[string]int{
-			"site1": 5,
-			"site2": 3,
-			"site3": 7,
-		},
+		log.Fatalf("Nom inconnu pour WebSocket : %s", a.name)
 	}
 
-	go func() {
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
-		for range ticker.C {
+	go ws.StartServer(wsURL, a.doctorInfo, a.actions)
+	go a.receive()
 
-			doctorInfo.DoctorsCount["site1"] += 1
-			doctorInfo.DoctorsCount["site2"] -= 1
-			doctorInfo.DoctorsCount["site3"] += 2
-		}
-	}()
-
-	actions := make(chan map[string]interface{}, 10)
-
-	// Passer l'interface à la méthode StartServer
-	go ws.StartServer(wsURL, doctorInfo, actions)
-	//go sendperiodic()
-	go receive()
-
-	for action := range actions {
-		if action["type"] == "demandeSC" {
+	for action := range a.actions {
+		if action["type"] == "send" {
 			fmt.Print("demandeSC\n")
+			a.waitingSC = true
+			for !a.inSC {
+				time.Sleep(100 * time.Millisecond)
+			}
+			fmt.Print("finSC\n")
+			a.inSC = false
 		}
 	}
+}
+
+func main() {
+	flag.Parse()
+	app := NewApp(*p_nom)
+	app.run()
 }
