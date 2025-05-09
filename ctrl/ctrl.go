@@ -116,21 +116,9 @@ func (c *Controller) HandleMessage() {
 		display_d("main", "received : "+rcvmsg)
 		rcvVC := utils.DecodeVC(findval(rcvmsg, "VC"))
 		rcvHLG, _ := strconv.Atoi(findval(rcvmsg, "hlg"))
-
 		sndmsg = findval(rcvmsg, "msg")
 		if sndmsg == "" { //si ce n'est pas formaté, ça veut dire qu'on récupère le message de l'app
-			switch rcvmsg {
-			case "debutSC":
-				display_f("NOT", "for me")
-			case "demandeSC":
-				c.Horloge++
-				tab[c.Nom] = EtatReqSite{
-					TypeRequete: Requete,
-					Horloge:     c.Horloge,
-				}
-				display_f("demandeSC", "Demande de SC locale, horloge : "+strconv.Itoa(c.Horloge))
-				fmt.Println(msg_format("type", string(Requete)) + msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
-			case "finSC":
+			if strings.HasPrefix(rcvmsg, "finSC") {
 				c.Horloge++
 				tab[c.Nom] = EtatReqSite{
 					TypeRequete: Liberation,
@@ -138,9 +126,33 @@ func (c *Controller) HandleMessage() {
 				}
 				c.IsInSection = false
 				display_f("finSC", "Fin de SC locale, horloge : "+strconv.Itoa(c.Horloge))
-				fmt.Println(msg_format("type", "liberation") + msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
-			default:
-				fmt.Println(msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
+				newData := ""
+				if len(rcvmsg) > len("finSC") && rcvmsg[len("finSC")] == '|' {
+					newData = rcvmsg[len("finSC"):] // ex: |app_1=4|app_2=3|app_3=7
+				}
+				fmt.Println(
+					msg_format("type", "liberation") +
+						msg_format("sender", c.Nom) +
+						msg_format("msg", "finSC") +
+						msg_format("hlg", strconv.Itoa(c.Horloge)) +
+						msg_format("new_data", newData),
+				)
+			} else {
+				switch rcvmsg {
+				case "debutSC":
+					display_f("NOT", "for me")
+				case "demandeSC":
+					c.Horloge++
+					tab[c.Nom] = EtatReqSite{
+						TypeRequete: Requete,
+						Horloge:     c.Horloge,
+					}
+					display_f("demandeSC", "Demande de SC locale, horloge : "+strconv.Itoa(c.Horloge))
+					fmt.Println(msg_format("type", string(Requete)) + msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
+				default:
+					fmt.Println(msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
+				}
+
 			}
 
 			//sinon, c'est un message provenant d'un ctrl
@@ -166,6 +178,8 @@ func (c *Controller) HandleMessage() {
 			sender := findval(rcvmsg, "sender")
 			//display_f("TYPE", msg_type)
 			switch msg_type {
+			case "new_data":
+				display_f("NOT", "for me")
 			case string(Requete):
 				if sender != *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrêt
 					tab[sender] = EtatReqSite{
@@ -194,6 +208,13 @@ func (c *Controller) HandleMessage() {
 					tab[sender] = EtatReqSite{
 						TypeRequete: Liberation,
 						Horloge:     rcvHLG,
+					}
+					new_data := findval(rcvmsg, "new_data")
+					if new_data != "" {
+						fmt.Println(
+							msg_format("type", "new_data") +
+								msg_format("new_data", new_data) + // ex : new_data|app_1=5|app_2=2|app_3=6
+								msg_format("msg", "finSC"))
 					}
 					display_f("liberation", "Libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
 					display_f("liberation", fmt.Sprintf("mon tab %#v", tab))

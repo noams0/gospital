@@ -8,6 +8,7 @@ import (
 	ws "gospital/websocket"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -93,10 +94,30 @@ func (a *App) receive() {
 		msg := scanner.Text()
 		globalMutex.Lock()
 		display_w("receive", "reception <"+msg+">")
+
 		if msg == "debutSC" && a.waitingSC {
 			a.inSC = true
 			a.waitingSC = false
+		} else if findval(msg, "type") == "new_data" {
+			display_w("NEW_DATA", "IL FAUT MAJ")
+			data := findval(msg, "new_data")
+			pairs := strings.Split(data, "|")
+			for _, pair := range pairs {
+				parts := strings.Split(pair, "=")
+				if len(parts) == 2 {
+					appName := parts[0]
+					val, err := strconv.Atoi(parts[1])
+					if err == nil {
+						a.doctorInfo.DoctorsCount[appName] = val
+						display_w("NEW_DATA", fmt.Sprintf("Mise à jour : %s -> %d", appName, val))
+					} else {
+						display_e("NEW_DATA", "Erreur de conversion pour "+pair)
+					}
+				}
+			}
+
 		}
+
 		globalMutex.Unlock()
 	}
 	if err := scanner.Err(); err != nil {
@@ -127,7 +148,17 @@ func (a *App) run() {
 			for !a.inSC {
 				time.Sleep(100 * time.Millisecond)
 			}
-			fmt.Print("finSC\n")
+			a.doctorInfo.DoctorsCount[*p_nom]--
+			if a.doctorInfo.DoctorsCount[*p_nom] < 0 {
+				a.doctorInfo.DoctorsCount[*p_nom] = 0
+			}
+
+			msg := "finSC"
+			for site, count := range a.doctorInfo.DoctorsCount {
+				msg += fmt.Sprintf("|%s=%d", site, count)
+			}
+
+			fmt.Print(msg + "\n")
 			a.inSC = false
 		}
 	}
