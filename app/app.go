@@ -56,18 +56,21 @@ func findval(msg string, key string) string {
 	return ""
 }
 
-type DoctorInfo struct {
-	DoctorsCount map[string]int
+func (d *DoctorInfo) SendDoctorInfo() utils.DoctorPayload {
+	return utils.DoctorPayload{
+		Sender:       *p_nom,
+		DoctorsCount: d.DoctorsCount,
+	}
 }
 
-func (d *DoctorInfo) SendDoctorInfo() map[string]int {
-	return d.DoctorsCount
+type DoctorInfo struct {
+	DoctorsCount map[string]int
 }
 
 // Struct App
 type App struct {
 	name       string
-	doctorInfo *DoctorInfo
+	doctorInfo DoctorInfo
 	actions    chan map[string]interface{}
 	waitingSC  bool
 	inSC       bool
@@ -76,7 +79,7 @@ type App struct {
 func NewApp(name string) *App {
 	return &App{
 		name: name,
-		doctorInfo: &DoctorInfo{
+		doctorInfo: DoctorInfo{
 			DoctorsCount: map[string]int{
 				"app_1": 5,
 				"app_2": 3,
@@ -138,7 +141,7 @@ func (a *App) run() {
 		log.Fatalf("Nom inconnu pour WebSocket : %s", a.name)
 	}
 
-	go ws.StartServer(wsURL, a.doctorInfo, a.actions)
+	go ws.StartServer(wsURL, &a.doctorInfo, a.actions)
 	go a.receive()
 
 	for action := range a.actions {

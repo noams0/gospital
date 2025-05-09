@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"gospital/utils"
 	"net/http"
 	"time"
 
@@ -15,7 +16,7 @@ var upgrader = websocket.Upgrader{
 }
 
 type DoctorInfoSender interface {
-	SendDoctorInfo() map[string]int
+	SendDoctorInfo() utils.DoctorPayload
 }
 
 // handleWS gère la connexion WebSocket pour chaque client

@@ -18,14 +18,18 @@ onMounted(() => {
     console.log('WebSocket connectée')
   }
 
+
   socket.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
-      doctorCounts.value = data
+      doctorCounts.value = data.doctors
+      doctorCountsSender.value = data.sender
+      console.log(data)
     } catch (err) {
       console.error('Message non JSON :', event.data)
     }
   }
+
 
   socket.onerror = (err) => {
     console.error('Erreur WebSocket:', err)
@@ -35,6 +39,15 @@ onMounted(() => {
     console.warn('WebSocket fermée')
   }
 })
+const doctorCountsSender = ref("")
+
+function envoyerMedecin(site) {
+  const message = {
+    type: "send",
+    to: site
+  }
+  socket.send(JSON.stringify(message))
+}
 
 onUnmounted(() => {
   if (socket) socket.close()
@@ -42,19 +55,20 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <button @click="demanderSectionCritique()">Envoyer un médecin</button>
-
-  <h1>Hôpitaux</h1>
-
-  <div class="hospitals-grid">
-    <div class="hospital" v-for="(count, site) in doctorCounts" :key="site">
-      <h2>{{ site }}</h2>
-      <div class="doctors">
-        <span v-for="n in count" :key="n">🧑‍⚕️</span>
-      </div>
-      <p>{{ count }} médecin(s)</p>
+  <div class="hospital" v-for="(count, site) in doctorCounts" :key="site">
+    <h2>{{ site }}</h2>
+    <div class="doctors">
+      <span v-for="n in count" :key="n">🧑‍⚕️</span>
     </div>
+    <p>{{ count }} médecin(s)</p>
+    <button
+        v-if="site !== doctorCountsSender"
+        @click="envoyerMedecin(site)"
+    >
+      Envoyer un médecin
+    </button>
   </div>
+
 </template>
 
 <style scoped>
