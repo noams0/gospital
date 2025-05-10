@@ -1,15 +1,11 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import {computed, onMounted, onUnmounted, ref} from 'vue'
 
 const wsUrl = import.meta.env.VITE_APP_WS_URL
 const doctorCounts = ref({})
 
 let socket = null
 
-function demanderSectionCritique() {
-  const message = { type: "send" }
-  socket.send(JSON.stringify(message))
-}
 
 onMounted(() => {
   socket = new WebSocket(wsUrl)
@@ -24,7 +20,10 @@ onMounted(() => {
       const data = JSON.parse(event.data)
       doctorCounts.value = data.doctors
       doctorCountsSender.value = data.sender
+      console.log(doctorCounts.value)
+      console.log(doctorCountsSender)
       console.log(data)
+      console.log(doctorCountsSenderNb)
     } catch (err) {
       console.error('Message non JSON :', event.data)
     }
@@ -40,6 +39,10 @@ onMounted(() => {
   }
 })
 const doctorCountsSender = ref("")
+
+const doctorCountsSenderNb = computed(() =>
+doctorCounts.value[doctorCountsSender.value]
+)
 
 function envoyerMedecin(site) {
   const message = {
@@ -62,7 +65,7 @@ onUnmounted(() => {
     </div>
     <p>{{ count }} médecin(s)</p>
     <button
-        v-if="site !== doctorCountsSender"
+        v-if="site !== doctorCountsSender && doctorCountsSenderNb > 0"
         @click="envoyerMedecin(site)"
     >
       Envoyer un médecin

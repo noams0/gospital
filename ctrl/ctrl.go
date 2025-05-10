@@ -112,7 +112,7 @@ func (c *Controller) HandleMessage() {
 	var sndmsg string
 	for {
 		fmt.Scanln(&rcvmsg)
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 		display_d("main", "received : "+rcvmsg)
 		rcvVC := utils.DecodeVC(findval(rcvmsg, "VC"))
 		rcvHLG, _ := strconv.Atoi(findval(rcvmsg, "hlg"))

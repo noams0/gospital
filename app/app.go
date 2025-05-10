@@ -120,9 +120,7 @@ func (a *App) receive() {
 					}
 				}
 			}
-
 		}
-
 		globalMutex.Unlock()
 	}
 	if err := scanner.Err(); err != nil {
@@ -187,7 +185,7 @@ func (a *App) run() {
 
 	for action := range a.actions {
 		display_w("action", fmt.Sprintf("%v", action["to"]))
-		if action["type"] == "send" {
+		if action["type"] == "send" && a.doctorInfo.DoctorsCount[*p_nom] > 0 {
 			destinator := strings.TrimSpace(action["to"].(string))
 			go a.waitingFoSending(destinator)
 		}

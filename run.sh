@@ -33,7 +33,7 @@ go run ctrl/ctrl.go -n "ctrl_2" < /tmp/in_C2 > /tmp/out_C2 & pids+=($!)
 go run app/app.go -n "app_3"  < /tmp/in_A3 > /tmp/out_A3 & pids+=($!)
 go run ctrl/ctrl.go -n "ctrl_3" < /tmp/in_C3 > /tmp/out_C3 & pids+=($!)
 
-cd front
+cd front || exit
 
 npm run dev:8080 & pids+=($!)
 npm run dev:8081 & pids+=($!)
