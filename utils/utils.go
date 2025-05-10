@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -58,4 +59,25 @@ func DecodeVC(s string) map[string]int {
 		}
 	}
 	return vc
+}
+
+func Int_to_ctrl(i int) string {
+	return fmt.Sprintf("ctrl_%i", i)
+}
+
+func Int_to_app(i int) string {
+	return fmt.Sprintf("app_%i", i)
+}
+
+func App_to_ctrl(app string) string {
+	switch app {
+	case "app_1":
+		return "ctrl_1"
+	case "app_2":
+		return "ctrl_2"
+	case "app_3":
+		return "ctrl_3"
+	default:
+		return "ctrl"
+	}
 }

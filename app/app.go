@@ -97,7 +97,9 @@ func (a *App) receive() {
 		msg := scanner.Text()
 		globalMutex.Lock()
 		display_w("receive", "reception <"+msg+">")
-
+		if msg == "receive" {
+			go a.waitingFoReceivng()
+		}
 		if msg == "debutSC" && a.waitingSC {
 			a.inSC = true
 			a.waitingSC = false
@@ -128,6 +130,45 @@ func (a *App) receive() {
 	}
 }
 
+func (a *App) waitingFoReceivng() {
+	fmt.Print("demandeSC\n")
+	a.waitingSC = true
+	for !a.inSC {
+		time.Sleep(100 * time.Millisecond)
+	}
+	a.doctorInfo.DoctorsCount[*p_nom]++
+	msg := "finSC"
+	for site, count := range a.doctorInfo.DoctorsCount {
+		msg += fmt.Sprintf("|%s=%d", site, count)
+	}
+
+	fmt.Print(msg + "\n")
+}
+
+func (a *App) waitingFoSending(destinator string) {
+	fmt.Print("demandeSC\n")
+	a.waitingSC = true
+	for !a.inSC {
+		time.Sleep(100 * time.Millisecond)
+	}
+	a.doctorInfo.DoctorsCount[*p_nom]--
+	if a.doctorInfo.DoctorsCount[*p_nom] < 0 {
+		a.doctorInfo.DoctorsCount[*p_nom] = 0
+	}
+
+	msg := "finSC"
+	for site, count := range a.doctorInfo.DoctorsCount {
+		msg += fmt.Sprintf("|%s=%d", site, count)
+	}
+
+	fmt.Print(msg + "\n")
+	msg = "send" + destinator
+	display_w("action :", msg)
+	fmt.Print(msg + "\n")
+
+	a.inSC = false
+}
+
 func (a *App) run() {
 	var wsURL string
 	switch a.name {
@@ -145,24 +186,10 @@ func (a *App) run() {
 	go a.receive()
 
 	for action := range a.actions {
+		display_w("action", fmt.Sprintf("%v", action["to"]))
 		if action["type"] == "send" {
-			fmt.Print("demandeSC\n")
-			a.waitingSC = true
-			for !a.inSC {
-				time.Sleep(100 * time.Millisecond)
-			}
-			a.doctorInfo.DoctorsCount[*p_nom]--
-			if a.doctorInfo.DoctorsCount[*p_nom] < 0 {
-				a.doctorInfo.DoctorsCount[*p_nom] = 0
-			}
-
-			msg := "finSC"
-			for site, count := range a.doctorInfo.DoctorsCount {
-				msg += fmt.Sprintf("|%s=%d", site, count)
-			}
-
-			fmt.Print(msg + "\n")
-			a.inSC = false
+			destinator := strings.TrimSpace(action["to"].(string))
+			go a.waitingFoSending(destinator)
 		}
 	}
 }

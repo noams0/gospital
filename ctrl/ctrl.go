@@ -112,7 +112,7 @@ func (c *Controller) HandleMessage() {
 	var sndmsg string
 	for {
 		fmt.Scanln(&rcvmsg)
-		time.Sleep(1 * time.Second)
+		time.Sleep(200 * time.Millisecond)
 		display_d("main", "received : "+rcvmsg)
 		rcvVC := utils.DecodeVC(findval(rcvmsg, "VC"))
 		rcvHLG, _ := strconv.Atoi(findval(rcvmsg, "hlg"))
@@ -137,9 +137,18 @@ func (c *Controller) HandleMessage() {
 						msg_format("hlg", strconv.Itoa(c.Horloge)) +
 						msg_format("new_data", newData),
 				)
+			} else if strings.HasPrefix(rcvmsg, "send") {
+				c.Horloge++
+				var destApp string = strings.TrimPrefix(rcvmsg, "send")
+				var destCtrl string = utils.App_to_ctrl(destApp)
+				display_f("destinator :", destCtrl)
+				fmt.Println(msg_format("type", "send") + msg_format("destinator", destCtrl) + msg_format("sender", c.Nom) + msg_format("msg", "send") + msg_format("hlg", strconv.Itoa(c.Horloge)))
+
 			} else {
+
 				switch rcvmsg {
 				case "debutSC":
+				case "receive":
 					display_f("NOT", "for me")
 				case "demandeSC":
 					c.Horloge++
@@ -258,6 +267,17 @@ func (c *Controller) HandleMessage() {
 					display_f("ack", "message ack pas pour oim"+rcvmsg)
 					fmt.Println(rcvmsg)
 				}
+
+			case "send":
+				if findval(rcvmsg, "destinator") == *p_nom {
+					display_f("send", "send pour oim"+rcvmsg)
+
+					fmt.Println("receive")
+				} else {
+					display_f("send", "send pas pour oim"+rcvmsg)
+					fmt.Println(rcvmsg)
+				}
+
 			default:
 				if sender == *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrête
 					display_e("main", "Arret du message :"+rcvmsg)
