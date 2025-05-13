@@ -30,7 +30,7 @@ func handleWS(w http.ResponseWriter, r *http.Request, addr string, infoSender Do
 
 	//fmt.Println("Client connecté")
 
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	go func() {
 		for {

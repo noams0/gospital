@@ -60,11 +60,13 @@ func (d *DoctorInfo) SendDoctorInfo() utils.DoctorPayload {
 	return utils.DoctorPayload{
 		Sender:       *p_nom,
 		DoctorsCount: d.DoctorsCount,
+		ActivityLog:  d.ActivityLog,
 	}
 }
 
 type DoctorInfo struct {
 	DoctorsCount map[string]int
+	ActivityLog  []string
 }
 
 // Struct App
@@ -85,6 +87,9 @@ func NewApp(name string) *App {
 				"app_2": 3,
 				"app_3": 7,
 			},
+			//ActivityLog: []string{
+			//	"DemSC", "DebSC", "FinSC", "DemSC",
+			//},
 		},
 		actions:   make(chan map[string]interface{}, 10),
 		waitingSC: false,
@@ -103,6 +108,7 @@ func (a *App) receive() {
 		if msg == "debutSC" && a.waitingSC {
 			a.inSC = true
 			a.waitingSC = false
+			a.doctorInfo.ActivityLog = append([]string{"DebSC"}, a.doctorInfo.ActivityLog...)
 		} else if findval(msg, "type") == "new_data" {
 			display_w("NEW_DATA", "IL FAUT MAJ")
 			data := findval(msg, "new_data")
@@ -115,6 +121,8 @@ func (a *App) receive() {
 					if err == nil {
 						a.doctorInfo.DoctorsCount[appName] = val
 						display_w("NEW_DATA", fmt.Sprintf("Mise à jour : %s -> %d", appName, val))
+						//a.doctorInfo.ActivityLog = append([]string{"NewData"}, a.doctorInfo.ActivityLog...)
+
 					} else {
 						display_e("NEW_DATA", "Erreur de conversion pour "+pair)
 					}
@@ -129,8 +137,11 @@ func (a *App) receive() {
 }
 
 func (a *App) waitingFoReceivng() {
+	a.doctorInfo.ActivityLog = append([]string{"Receive"}, a.doctorInfo.ActivityLog...)
+
 	fmt.Print("demandeSC\n")
 	a.waitingSC = true
+	a.doctorInfo.ActivityLog = append([]string{"DemSC"}, a.doctorInfo.ActivityLog...)
 	for !a.inSC {
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -141,11 +152,14 @@ func (a *App) waitingFoReceivng() {
 	}
 
 	fmt.Print(msg + "\n")
+	a.doctorInfo.ActivityLog = append([]string{"FinSC"}, a.doctorInfo.ActivityLog...)
+
 }
 
 func (a *App) waitingFoSending(destinator string) {
 	fmt.Print("demandeSC\n")
 	a.waitingSC = true
+	a.doctorInfo.ActivityLog = append([]string{"DemSC"}, a.doctorInfo.ActivityLog...)
 	for !a.inSC {
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -158,11 +172,12 @@ func (a *App) waitingFoSending(destinator string) {
 	for site, count := range a.doctorInfo.DoctorsCount {
 		msg += fmt.Sprintf("|%s=%d", site, count)
 	}
-
 	fmt.Print(msg + "\n")
+	a.doctorInfo.ActivityLog = append([]string{"FinSC"}, a.doctorInfo.ActivityLog...)
 	msg = "send" + destinator
 	display_w("action :", msg)
 	fmt.Print(msg + "\n")
+	a.doctorInfo.ActivityLog = append([]string{"Envoie"}, a.doctorInfo.ActivityLog...)
 
 	a.inSC = false
 }
