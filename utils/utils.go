@@ -14,6 +14,13 @@ func Recaler(x, y int) int {
 	return x + 1
 }
 
+const fieldsep = "/"
+const keyvalsep = "="
+
+func Msg_format(key string, val string) string {
+	return fieldsep + keyvalsep + key + keyvalsep + val
+}
+
 func Display_d(stderr *log.Logger, p_nom *string, pid int, where string, what string) {
 	stderr.Printf("%s + [%.6s %d] %-8.8s : %s\n%s", ColorBlue, *p_nom, pid, where, what, ColorReset)
 }

@@ -19,43 +19,6 @@ var stderr = log.New(os.Stderr, "", 0)
 var p_nom *string = flag.String("n", "nom", "nom")
 var globalMutex = &sync.Mutex{}
 
-var mu = &sync.Mutex{}
-
-func display_d(where string, what string) {
-	stderr.Printf("%s + [%.6s %d] %-8.8s : %s\n%s", utils.ColorBlue, *p_nom, pid, where, what, utils.ColorReset)
-}
-func display_w(where string, what string) {
-	stderr.Printf("%s * [%.6s %d] %-8.8s : %s\n%s", utils.ColorYellow, *p_nom, pid, where, what, utils.ColorReset)
-}
-func display_e(where string, what string) {
-	stderr.Printf("%s ! [%.6s %d] %-8.8s : %s\n%s", utils.ColorRed, *p_nom, pid, where, what, utils.ColorReset)
-}
-
-func findval(msg string, key string) string {
-	if len(msg) < 4 {
-		display_w("findval", "message trop court : "+msg)
-		return ""
-	}
-	sep := msg[0:1]
-	tab_allkeyvals := strings.Split(msg[1:], sep)
-
-	for _, keyval := range tab_allkeyvals {
-		if len(keyval) < 3 {
-			display_w("findval", "clé-valeur trop courte : "+keyval)
-			continue
-		}
-		equ := keyval[0:1]
-		tabkeyval := strings.SplitN(keyval[1:], equ, 2)
-		if len(tabkeyval) != 2 {
-			continue
-		}
-		if tabkeyval[0] == key {
-			return tabkeyval[1]
-		}
-	}
-	return ""
-}
-
 func (d *DoctorInfo) SendDoctorInfo() utils.DoctorPayload {
 	return utils.DoctorPayload{
 		Sender:       *p_nom,
@@ -94,6 +57,43 @@ func NewApp(name string) *App {
 		actions:   make(chan map[string]interface{}, 10),
 		waitingSC: false,
 	}
+}
+
+var mu = &sync.Mutex{}
+
+func display_d(where string, what string) {
+	stderr.Printf("%s + [%.6s %d] %-8.8s : %s\n%s", utils.ColorBlue, *p_nom, pid, where, what, utils.ColorReset)
+}
+func display_w(where string, what string) {
+	stderr.Printf("%s * [%.6s %d] %-8.8s : %s\n%s", utils.ColorYellow, *p_nom, pid, where, what, utils.ColorReset)
+}
+func display_e(where string, what string) {
+	stderr.Printf("%s ! [%.6s %d] %-8.8s : %s\n%s", utils.ColorRed, *p_nom, pid, where, what, utils.ColorReset)
+}
+
+func findval(msg string, key string) string {
+	if len(msg) < 4 {
+		display_w("findval", "message trop court : "+msg)
+		return ""
+	}
+	sep := msg[0:1]
+	tab_allkeyvals := strings.Split(msg[1:], sep)
+
+	for _, keyval := range tab_allkeyvals {
+		if len(keyval) < 3 {
+			display_w("findval", "clé-valeur trop courte : "+keyval)
+			continue
+		}
+		equ := keyval[0:1]
+		tabkeyval := strings.SplitN(keyval[1:], equ, 2)
+		if len(tabkeyval) != 2 {
+			continue
+		}
+		if tabkeyval[0] == key {
+			return tabkeyval[1]
+		}
+	}
+	return ""
 }
 
 func (a *App) receive() {
@@ -139,17 +139,19 @@ func (a *App) receive() {
 func (a *App) waitingFoReceivng() {
 	a.doctorInfo.ActivityLog = append([]string{"Receive"}, a.doctorInfo.ActivityLog...)
 
-	fmt.Print("demandeSC\n")
+	fmt.Print(utils.Msg_format("type", "demandeSC") + "\n")
+
 	a.waitingSC = true
 	a.doctorInfo.ActivityLog = append([]string{"DemSC"}, a.doctorInfo.ActivityLog...)
 	for !a.inSC {
 		time.Sleep(100 * time.Millisecond)
 	}
 	a.doctorInfo.DoctorsCount[*p_nom]++
-	msg := "finSC"
+	new_data := ""
 	for site, count := range a.doctorInfo.DoctorsCount {
-		msg += fmt.Sprintf("|%s=%d", site, count)
+		new_data += fmt.Sprintf("|%s=%d", site, count)
 	}
+	msg := utils.Msg_format("type", "finSC") + utils.Msg_format("new_data", new_data)
 
 	fmt.Print(msg + "\n")
 	a.doctorInfo.ActivityLog = append([]string{"FinSC"}, a.doctorInfo.ActivityLog...)
@@ -157,7 +159,7 @@ func (a *App) waitingFoReceivng() {
 }
 
 func (a *App) waitingFoSending(destinator string) {
-	fmt.Print("demandeSC\n")
+	fmt.Print(utils.Msg_format("type", "demandeSC") + "\n")
 	a.waitingSC = true
 	a.doctorInfo.ActivityLog = append([]string{"DemSC"}, a.doctorInfo.ActivityLog...)
 	for !a.inSC {
@@ -168,13 +170,16 @@ func (a *App) waitingFoSending(destinator string) {
 		a.doctorInfo.DoctorsCount[*p_nom] = 0
 	}
 
-	msg := "finSC"
+	new_data := ""
 	for site, count := range a.doctorInfo.DoctorsCount {
-		msg += fmt.Sprintf("|%s=%d", site, count)
+		new_data += fmt.Sprintf("|%s=%d", site, count)
 	}
+	msg := utils.Msg_format("type", "finSC") + utils.Msg_format("new_data", new_data)
+
 	fmt.Print(msg + "\n")
 	a.doctorInfo.ActivityLog = append([]string{"FinSC"}, a.doctorInfo.ActivityLog...)
-	msg = "send" + destinator
+	//msg = "send" + destinator
+	msg = utils.Msg_format("type", "send") + utils.Msg_format("destinator", destinator)
 	display_w("action :", msg)
 	fmt.Print(msg + "\n")
 	a.doctorInfo.ActivityLog = append([]string{"Envoie"}, a.doctorInfo.ActivityLog...)
