@@ -89,7 +89,7 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 		utils.Display_f("destinator :", destCtrl, c.Nom)
 		fmt.Println(utils.Msg_format("type", "send") + utils.Msg_format("destinator", destCtrl) + utils.Msg_format("sender", c.Nom) + utils.Msg_format("msg", "send") + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	default:
-		fmt.Println(utils.Msg_format("sender", c.Nom) + utils.Msg_format("msg", rcvmsg) + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
+		//fmt.Println(utils.Msg_format("sender", c.Nom) + utils.Msg_format("msg", rcvmsg) + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	case "debutSC":
 	case "receive":
 		utils.Display_f("NOT", "for me", c.Nom)
@@ -146,7 +146,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 					utils.Display_f("SC", "\n ======================", c.Nom)
 					fmt.Print("debutSC\n")
 					utils.Display_e("je veux passer mon tab", fmt.Sprintf("%#v", c.Tab), c.Nom)
-					//fmt.Println(c.Tab)
+					fmt.Println(TabToString(c.Tab))
 					//fmt.Println("\n")
 				}
 			}
@@ -176,7 +176,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 					utils.Display_f("SC", "\n ======================", c.Nom)
 					fmt.Print("debutSC\n")
 					utils.Display_e("je veux passer mon tab", fmt.Sprintf("%#v", c.Tab), c.Nom)
-					//fmt.Println(c.Tab)
+					fmt.Println(TabToString(c.Tab) + "\n")
 				}
 			}
 			utils.Display_f("liberation", "libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
@@ -203,8 +203,8 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 					utils.Display_f("SC", "\n ======================", c.Nom)
 					fmt.Print("debutSC\n")
 					utils.Display_e("je veux passer mon tab", fmt.Sprintf("%#v", c.Tab), c.Nom)
-					//fmt.Println(c.Tab)
-					//fmt.Println("\n")
+					fmt.Println(TabToString(c.Tab))
+					//fmt.Println("\n")"
 				}
 			}
 		} else {
@@ -231,6 +231,15 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			fmt.Println(rcvmsg)
 		}
 	}
+}
+
+func TabToString(tab map[string]EtatReqSite) string {
+	var result string = "TAB_REQ"
+
+	for k, v := range tab {
+		result += fmt.Sprintf("%s : Horloge=%d, Type=%s,", k, v.Horloge, v.TypeRequete)
+	}
+	return result
 }
 
 func (c *Controller) IsFromApp(rcvmsg string) bool {
@@ -265,15 +274,13 @@ func isFirstRequest(tab map[string]EtatReqSite, me string, h int) bool {
 			//utils.Display_f("TENTATIVE", "c'est moi, je passe")
 			continue
 		}
-		if info.TypeRequete == Requete {
-			if info.Horloge < h {
-				//utils.Display_f("TENTATIVE RATEE", fmt.Sprintf("ca passe pas pour %d >= %d", info.Horloge, h))
+		if info.Horloge < h {
+			//utils.Display_f("TENTATIVE RATEE", fmt.Sprintf("ca passe pas pour %d >= %d", info.Horloge, h))
 
-				return false
-			}
-			//utils.Display_f("TENTATIVE", fmt.Sprintf("ca passe pour %d >= %d", info.Horloge, h))
-
+			return false
 		}
+		//utils.Display_f("TENTATIVE", fmt.Sprintf("ca passe pour %d >= %d", info.Horloge, h))
+
 	}
 	return true
 }

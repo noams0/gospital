@@ -51,6 +51,29 @@ function getLogClass(log) {
   return "log-default";
 }
 
+function formatLog(entry) {
+  if (entry.startsWith("TAB_REQ")) {
+    const rows = entry
+        .replace("TAB_REQ", "")
+        .split(",")
+        .filter(e => e.trim() !== "")
+        .map(siteStr => {
+          const [site, rest] = siteStr.split(" : ");
+          const kvPairs = rest
+              ?.split(",")
+              .map(p => p.trim())
+              .filter(p => p.length > 0);
+
+          const indented = kvPairs?.map(kv => `&nbsp;&nbsp;${kv}`).join("<br>") || "";
+          return `<strong>${site.trim()}</strong> <br>${indented}`;
+        });
+
+    return `<strong>TAB_REQ</strong><br>${rows.join("<br>")}`;
+  } else {
+    return entry; // Affichage brut pour les autres logs
+  }
+}
+
 function envoyerMedecin(site) {
   const message = {
     type: "send",
@@ -81,9 +104,12 @@ onUnmounted(() => {
   <div class="activity-log">
     <h3>Journal des activités</h3>
     <ul>
-      <li v-for="(entry, index) in activityLog" :key="index" :class="getLogClass(entry)">
-        {{ entry }}
-      </li>
+      <li
+          v-for="(entry, index) in activityLog"
+          :key="index"
+          :class="getLogClass(entry)"
+          v-html="formatLog(entry)"
+      />
     </ul>
   </div>
 

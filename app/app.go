@@ -68,7 +68,10 @@ func (a *App) receive() {
 		if msg == "receive" {
 			go a.waitingFoReceivng()
 		}
-		if msg == "debutSC" && a.waitingSC {
+		if strings.HasPrefix(msg, "TAB_REQ") {
+			a.doctorInfo.ActivityLog = append([]string{msg}, a.doctorInfo.ActivityLog...)
+
+		} else if msg == "debutSC" && a.waitingSC {
 			a.inSC = true
 			a.waitingSC = false
 			a.doctorInfo.ActivityLog = append([]string{"DebSC"}, a.doctorInfo.ActivityLog...)
