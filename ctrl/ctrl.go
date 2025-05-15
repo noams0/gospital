@@ -55,7 +55,7 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 	switch type_msg {
 	case "demandeSC":
 		c.Horloge++
-		tab[c.Nom] = EtatReqSite{
+		c.Tab[c.Nom] = EtatReqSite{
 			TypeRequete: Requete,
 			Horloge:     c.Horloge,
 		}
@@ -67,7 +67,7 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 				utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	case "finSC":
 		c.Horloge++
-		tab[c.Nom] = EtatReqSite{
+		c.Tab[c.Nom] = EtatReqSite{
 			TypeRequete: Liberation,
 			Horloge:     c.Horloge,
 		}
@@ -127,30 +127,33 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 		utils.Display_f("NOT", "for me", c.Nom)
 	case string(Requete):
 		if sender != *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrêt
-			tab[sender] = EtatReqSite{
+			c.Tab[sender] = EtatReqSite{
 				TypeRequete: Requete,
 				Horloge:     rcvHLG,
 			}
 			utils.Display_f(string(Requete), "Requête reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
 			//envoyer( [accusé] hi ) à Sj
 			utils.Display_f(string(Requete), rcvmsg, c.Nom)
-			utils.Display_f(string(Requete), fmt.Sprintf("mon tab %#v", tab), c.Nom)
+			utils.Display_f(string(Requete), fmt.Sprintf("mon tab %#v", c.Tab), c.Nom)
 			fmt.Println(rcvmsg)
 
 			fmt.Println(utils.Msg_format("destinator", sender) + utils.Msg_format("msg", "ack") + utils.Msg_format("type", "ack") + utils.Msg_format("sender", c.Nom) + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
-			if tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
-				if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
+			if c.Tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
+				if isFirstRequest(c.Tab, c.Nom, c.Tab[c.Nom].Horloge) {
 					c.IsInSection = true
 					utils.Display_f("SC", "\n ======================", c.Nom)
 					utils.Display_f("SC", "Entrée en SC autorisée", c.Nom)
 					utils.Display_f("SC", "\n ======================", c.Nom)
 					fmt.Print("debutSC\n")
+					utils.Display_e("je veux passer mon tab", fmt.Sprintf("%#v", c.Tab), c.Nom)
+					//fmt.Println(c.Tab)
+					//fmt.Println("\n")
 				}
 			}
 		}
 	case string(Liberation):
 		if sender != *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrêt
-			tab[sender] = EtatReqSite{
+			c.Tab[sender] = EtatReqSite{
 				TypeRequete: Liberation,
 				Horloge:     rcvHLG,
 			}
@@ -162,41 +165,46 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 						utils.Msg_format("msg", "finSC"))
 			}
 			utils.Display_f("liberation", "Libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
-			utils.Display_f("liberation", fmt.Sprintf("mon tab %#v", tab), c.Nom)
+			utils.Display_f("liberation", fmt.Sprintf("mon tab %#v", c.Tab), c.Nom)
 			fmt.Println(rcvmsg)
 			//envoyer( [accusé] hi ) à Sj
-			if tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
-				if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
+			if c.Tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
+				if isFirstRequest(c.Tab, c.Nom, c.Tab[c.Nom].Horloge) {
 					c.IsInSection = true
 					utils.Display_f("SC", "\n ======================", c.Nom)
 					utils.Display_f("SC", "Entrée en SC autorisée", c.Nom)
 					utils.Display_f("SC", "\n ======================", c.Nom)
 					fmt.Print("debutSC\n")
+					utils.Display_e("je veux passer mon tab", fmt.Sprintf("%#v", c.Tab), c.Nom)
+					//fmt.Println(c.Tab)
 				}
 			}
 			utils.Display_f("liberation", "libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
 		}
 	case "ack":
 		if utils.Findval(rcvmsg, "destinator", c.Nom) == *p_nom+"-"+strconv.Itoa(pid) {
-			if tab[sender].TypeRequete != Requete {
-				tab[sender] = EtatReqSite{
+			if c.Tab[sender].TypeRequete != Requete {
+				c.Tab[sender] = EtatReqSite{
 					TypeRequete: Accuse,
 					Horloge:     rcvHLG,
 				}
 			}
 			utils.Display_f("Accusé", "Accusé reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
-			utils.Display_f("Accusé", fmt.Sprintf("mon tab %#v", tab), c.Nom)
+			utils.Display_f("Accusé", fmt.Sprintf("mon c.Tab %#v", c.Tab), c.Nom)
 
 			//envoyer( [accusé] hi ) à Sj
-			if tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
+			if c.Tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
 				utils.Display_f("TENTATIVE", "Je vais tenter de voir si je suis le premier", c.Nom)
 
-				if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
+				if isFirstRequest(c.Tab, c.Nom, c.Tab[c.Nom].Horloge) {
 					c.IsInSection = true
 					utils.Display_f("SC", "\n ======================", c.Nom)
 					utils.Display_f("SC", "Entrée en SC autorisée", c.Nom)
 					utils.Display_f("SC", "\n ======================", c.Nom)
 					fmt.Print("debutSC\n")
+					utils.Display_e("je veux passer mon tab", fmt.Sprintf("%#v", c.Tab), c.Nom)
+					//fmt.Println(c.Tab)
+					//fmt.Println("\n")
 				}
 			}
 		} else {
