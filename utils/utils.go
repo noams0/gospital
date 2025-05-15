@@ -3,17 +3,33 @@ package utils
 import (
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 )
 
-func Recaler(x, y int) int {
-	if x < y {
-		return y + 1
-	}
-	return x + 1
+/*
+FONCTIONS D'AFFICHAGE
+*/
+var stderr = log.New(os.Stderr, "", 0)
+
+func Display_d(where string, what string, nom string) {
+	stderr.Printf("%s + [%s] %-8.8s : %s\n%s", ColorBlue, nom, where, what, ColorReset)
+}
+func Display_w(where string, what string, nom string) {
+
+	stderr.Printf("%s * [%s] %-8.8s : %s\n%s", ColorYellow, nom, where, what, ColorReset)
+}
+func Display_e(where string, what string, nom string) {
+	stderr.Printf("%s ! [%s] %-8.8s : %s\n%s", ColorRed, nom, where, what, ColorReset)
+}
+func Display_f(where string, what string, nom string) {
+	stderr.Printf("%s * [%s] %-8.8s : %s\n%s", ColorPurple, nom, where, what, ColorReset)
 }
 
+/*
+FONCTIONS ENCODAGE ET DECODAGE DE MESSAGE
+*/
 const fieldsep = "/"
 const keyvalsep = "="
 
@@ -21,17 +37,39 @@ func Msg_format(key string, val string) string {
 	return fieldsep + keyvalsep + key + keyvalsep + val
 }
 
-func Display_d(stderr *log.Logger, p_nom *string, pid int, where string, what string) {
-	stderr.Printf("%s + [%.6s %d] %-8.8s : %s\n%s", ColorBlue, *p_nom, pid, where, what, ColorReset)
+func Findval(msg string, key string, nom string) string {
+	if len(msg) < 4 {
+		Display_w("findval", "message trop court : "+msg, nom)
+		return ""
+	}
+	sep := msg[0:1]
+	tab_allkeyvals := strings.Split(msg[1:], sep)
+
+	for _, keyval := range tab_allkeyvals {
+		if len(keyval) < 3 { // au moins 1 pour separateur, 1 pour key, 1 pour val
+			Display_w("findval", "message trop court : "+msg, nom)
+			continue
+		}
+		equ := keyval[0:1]
+		tabkeyval := strings.SplitN(keyval[1:], equ, 2)
+		if len(tabkeyval) != 2 {
+			continue
+		}
+		if tabkeyval[0] == key {
+			return tabkeyval[1]
+		}
+	}
+	return ""
 }
 
-func Display_w(stderr *log.Logger, p_nom *string, pid int, where string, what string) {
-
-	stderr.Printf("%s * [%.6s %d] %-8.8s : %s\n%s", ColorYellow, *p_nom, pid, where, what, ColorReset)
-}
-
-func Display_e(stderr *log.Logger, p_nom *string, pid int, where string, what string) {
-	stderr.Printf("%s ! [%.6s %d] %-8.8s : %s\n%s", ColorRed, *p_nom, pid, where, what, ColorReset)
+/*
+FONCTIONS D'AIDE POUR LES HORLOGES
+*/
+func Recaler(x, y int) int {
+	if x < y {
+		return y + 1
+	}
+	return x + 1
 }
 
 func CloneVC(vc map[string]int) map[string]int {
@@ -68,6 +106,10 @@ func DecodeVC(s string) map[string]int {
 	return vc
 }
 
+/*
+ FONCTIONS ANNEXES
+*/
+
 func Int_to_ctrl(i int) string {
 	return fmt.Sprintf("ctrl_%i", i)
 }
@@ -87,4 +129,14 @@ func App_to_ctrl(app string) string {
 	default:
 		return "ctrl"
 	}
+}
+
+func less(vc1 map[string]int, name1 string, vc2 map[string]int, name2 string) bool {
+	// Compare (vc1, name1) < (vc2, name2)
+	v1 := vc1[name1]
+	v2 := vc2[name2]
+	if v1 != v2 {
+		return v1 < v2
+	}
+	return name1 < name2
 }

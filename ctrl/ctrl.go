@@ -7,9 +7,11 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 )
+
+var pid = os.Getpid()
+var stderr = log.New(os.Stderr, "", 0)
 
 type MessageType string
 
@@ -24,7 +26,7 @@ type EtatReqSite struct {
 	TypeRequete MessageType
 }
 
-var tab map[string]EtatReqSite = make(map[string]EtatReqSite)
+var tab = make(map[string]EtatReqSite)
 
 type Controller struct {
 	Nom         string
@@ -44,72 +46,11 @@ func NewController(nom string) *Controller {
 	}
 }
 
-var pid = os.Getpid()
-var stderr = log.New(os.Stderr, "", 0)
-
-const fieldsep = "/"
-const keyvalsep = "="
-
-func msg_format(key string, val string) string {
-	return fieldsep + keyvalsep + key + keyvalsep + val
-}
-
-func findval(msg string, key string) string {
-	if len(msg) < 4 {
-		display_w("findval", "message trop court : "+msg)
-		return ""
-	}
-	sep := msg[0:1]
-	tab_allkeyvals := strings.Split(msg[1:], sep)
-
-	for _, keyval := range tab_allkeyvals {
-		if len(keyval) < 3 { // au moins 1 pour separateur, 1 pour key, 1 pour val
-			display_w("findval", "message trop court : "+msg)
-			continue
-		}
-		equ := keyval[0:1]
-		tabkeyval := strings.SplitN(keyval[1:], equ, 2)
-		if len(tabkeyval) != 2 {
-			continue
-		}
-		if tabkeyval[0] == key {
-			return tabkeyval[1]
-		}
-	}
-	return ""
-}
-
-func display_d(where string, what string) {
-	stderr.Printf("%s + [%.6s %d] %-8.8s : %s\n%s", utils.ColorBlue, *p_nom, pid, where, what, utils.ColorReset)
-}
-
-func display_w(where string, what string) {
-
-	stderr.Printf("%s * [%.6s %d] %-8.8s : %s\n%s", utils.ColorYellow, *p_nom, pid, where, what, utils.ColorReset)
-}
-
-func display_e(where string, what string) {
-	stderr.Printf("%s ! [%.6s %d] %-8.8s : %s\n%s", utils.ColorRed, *p_nom, pid, where, what, utils.ColorReset)
-}
-
-func display_f(where string, what string) {
-
-	stderr.Printf("%s * [%.6s %d] %-8.8s : %s\n%s", utils.ColorPurple, *p_nom, pid, where, what, utils.ColorReset)
-}
-
 var p_nom *string = flag.String("n", "ecrivain", "nom")
 
-func main() {
-	flag.Parse()
-
-	nom := *p_nom + "-" + strconv.Itoa(os.Getpid())
-	ctrl := NewController(nom)
-	ctrl.HandleMessage()
-}
-
 func (c *Controller) handleAppMessage(rcvmsg string) {
-	type_msg := findval(rcvmsg, "type")
-	display_d("main", "TYPE de la demande en provenance de l'app : "+type_msg)
+	type_msg := utils.Findval(rcvmsg, "type", c.Nom)
+	utils.Display_d("main", "TYPE de la demande en provenance de l'app : "+type_msg, c.Nom)
 
 	switch type_msg {
 	case "demandeSC":
@@ -118,8 +59,12 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 			TypeRequete: Requete,
 			Horloge:     c.Horloge,
 		}
-		display_f("demandeSC", "Demande de SC locale, horloge : "+strconv.Itoa(c.Horloge))
-		fmt.Println(msg_format("type", string(Requete)) + msg_format("sender", c.Nom) + msg_format("msg", "1") + msg_format("hlg", strconv.Itoa(c.Horloge)))
+		utils.Display_f("demandeSC", "Demande de SC locale, horloge : "+strconv.Itoa(c.Horloge), c.Nom)
+		fmt.Println(
+			utils.Msg_format("type", string(Requete)) +
+				utils.Msg_format("sender", c.Nom) +
+				utils.Msg_format("msg", "1") +
+				utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	case "finSC":
 		c.Horloge++
 		tab[c.Nom] = EtatReqSite{
@@ -127,38 +72,38 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 			Horloge:     c.Horloge,
 		}
 		c.IsInSection = false
-		display_f("finSC", "Fin de SC locale, horloge : "+strconv.Itoa(c.Horloge))
+		utils.Display_f("finSC", "Fin de SC locale, horloge : "+strconv.Itoa(c.Horloge), c.Nom)
 		newData := ""
-		newData = findval(rcvmsg, "new_data") // ex: |app_1=4|app_2=3|app_3=7
+		newData = utils.Findval(rcvmsg, "new_data", c.Nom) // ex: |app_1=4|app_2=3|app_3=7
 		fmt.Println(
-			msg_format("type", "liberation") +
-				msg_format("sender", c.Nom) +
-				msg_format("msg", "finSC") +
-				msg_format("hlg", strconv.Itoa(c.Horloge)) +
-				msg_format("new_data", newData),
+			utils.Msg_format("type", "liberation") +
+				utils.Msg_format("sender", c.Nom) +
+				utils.Msg_format("msg", "finSC") +
+				utils.Msg_format("hlg", strconv.Itoa(c.Horloge)) +
+				utils.Msg_format("new_data", newData),
 		)
 	case "send":
 		c.Horloge++
-		var destApp string = findval(rcvmsg, "destinator")
+		var destApp string = utils.Findval(rcvmsg, "destinator", c.Nom)
 		var destCtrl string = utils.App_to_ctrl(destApp)
-		display_f("destinator :", destCtrl)
-		fmt.Println(msg_format("type", "send") + msg_format("destinator", destCtrl) + msg_format("sender", c.Nom) + msg_format("msg", "send") + msg_format("hlg", strconv.Itoa(c.Horloge)))
+		utils.Display_f("destinator :", destCtrl, c.Nom)
+		fmt.Println(utils.Msg_format("type", "send") + utils.Msg_format("destinator", destCtrl) + utils.Msg_format("sender", c.Nom) + utils.Msg_format("msg", "send") + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	default:
-		fmt.Println(msg_format("sender", c.Nom) + msg_format("msg", rcvmsg) + msg_format("hlg", strconv.Itoa(c.Horloge)))
+		fmt.Println(utils.Msg_format("sender", c.Nom) + utils.Msg_format("msg", rcvmsg) + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	case "debutSC":
 	case "receive":
-		display_f("NOT", "for me")
+		utils.Display_f("NOT", "for me", c.Nom)
 	}
 
 }
 
 func (c *Controller) handleCtrlMessage(rcvmsg string) {
-	rcvVC := utils.DecodeVC(findval(rcvmsg, "VC"))
-	rcvHLG, _ := strconv.Atoi(findval(rcvmsg, "hlg"))
-	sndmsg := findval(rcvmsg, "msg")
+	rcvVC := utils.DecodeVC(utils.Findval(rcvmsg, "VC", c.Nom))
+	rcvHLG, _ := strconv.Atoi(utils.Findval(rcvmsg, "hlg", c.Nom))
+	sndmsg := utils.Findval(rcvmsg, "msg", c.Nom)
 
 	if len(rcvVC) != 0 {
-		display_d("main", fmt.Sprintf("horloge reçue : %#v", rcvVC))
+		utils.Display_d("main", fmt.Sprintf("horloge reçue : %#v", rcvVC), c.Nom)
 		for k, v := range rcvVC {
 			if _, ok := c.VectorClock[k]; !ok {
 				c.VectorClock[k] = 0
@@ -168,37 +113,37 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			}
 		}
 		c.VectorClock[*p_nom]++
-		//display_e("main", "Nouvelle horloge :"+utils.Encodehorloge(c.VectorClock))
+		//utils.Display_e("main", "Nouvelle horloge :"+utils.Encodehorloge(c.VectorClock))
 	} else {
 		c.VectorClock[*p_nom]++
 	}
 	c.Horloge = max(rcvHLG, c.Horloge) + 1
 
-	msg_type := findval(rcvmsg, "type")
-	sender := findval(rcvmsg, "sender")
-	//display_f("TYPE", msg_type)
+	msg_type := utils.Findval(rcvmsg, "type", c.Nom)
+	sender := utils.Findval(rcvmsg, "sender", c.Nom)
+	//utils.Display_f("TYPE", msg_type)
 	switch msg_type {
 	case "new_data":
-		display_f("NOT", "for me")
+		utils.Display_f("NOT", "for me", c.Nom)
 	case string(Requete):
 		if sender != *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrêt
 			tab[sender] = EtatReqSite{
 				TypeRequete: Requete,
 				Horloge:     rcvHLG,
 			}
-			display_f(string(Requete), "Requête reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
+			utils.Display_f(string(Requete), "Requête reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
 			//envoyer( [accusé] hi ) à Sj
-			display_f(string(Requete), rcvmsg)
-			display_f(string(Requete), fmt.Sprintf("mon tab %#v", tab))
+			utils.Display_f(string(Requete), rcvmsg, c.Nom)
+			utils.Display_f(string(Requete), fmt.Sprintf("mon tab %#v", tab), c.Nom)
 			fmt.Println(rcvmsg)
 
-			fmt.Println(msg_format("destinator", sender) + msg_format("msg", "ack") + msg_format("type", "ack") + msg_format("sender", c.Nom) + msg_format("hlg", strconv.Itoa(c.Horloge)))
+			fmt.Println(utils.Msg_format("destinator", sender) + utils.Msg_format("msg", "ack") + utils.Msg_format("type", "ack") + utils.Msg_format("sender", c.Nom) + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 			if tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
 				if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
 					c.IsInSection = true
-					display_f("SC", "\n ======================")
-					display_f("SC", "Entrée en SC autorisée")
-					display_f("SC", "\n ======================")
+					utils.Display_f("SC", "\n ======================", c.Nom)
+					utils.Display_f("SC", "Entrée en SC autorisée", c.Nom)
+					utils.Display_f("SC", "\n ======================", c.Nom)
 					fmt.Print("debutSC\n")
 				}
 			}
@@ -209,92 +154,95 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 				TypeRequete: Liberation,
 				Horloge:     rcvHLG,
 			}
-			new_data := findval(rcvmsg, "new_data")
+			new_data := utils.Findval(rcvmsg, "new_data", c.Nom)
 			if new_data != "" {
 				fmt.Println(
-					msg_format("type", "new_data") +
-						msg_format("new_data", new_data) + // ex : new_data|app_1=5|app_2=2|app_3=6
-						msg_format("msg", "finSC"))
+					utils.Msg_format("type", "new_data") +
+						utils.Msg_format("new_data", new_data) + // ex : new_data|app_1=5|app_2=2|app_3=6
+						utils.Msg_format("msg", "finSC"))
 			}
-			display_f("liberation", "Libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
-			display_f("liberation", fmt.Sprintf("mon tab %#v", tab))
+			utils.Display_f("liberation", "Libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
+			utils.Display_f("liberation", fmt.Sprintf("mon tab %#v", tab), c.Nom)
 			fmt.Println(rcvmsg)
 			//envoyer( [accusé] hi ) à Sj
 			if tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
 				if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
 					c.IsInSection = true
-					display_f("SC", "\n ======================")
-					display_f("SC", "Entrée en SC autorisée")
-					display_f("SC", "\n ======================")
+					utils.Display_f("SC", "\n ======================", c.Nom)
+					utils.Display_f("SC", "Entrée en SC autorisée", c.Nom)
+					utils.Display_f("SC", "\n ======================", c.Nom)
 					fmt.Print("debutSC\n")
 				}
 			}
-			display_f("liberation", "libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
+			utils.Display_f("liberation", "libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
 		}
 	case "ack":
-		if findval(rcvmsg, "destinator") == *p_nom+"-"+strconv.Itoa(pid) {
+		if utils.Findval(rcvmsg, "destinator", c.Nom) == *p_nom+"-"+strconv.Itoa(pid) {
 			if tab[sender].TypeRequete != Requete {
 				tab[sender] = EtatReqSite{
 					TypeRequete: Accuse,
 					Horloge:     rcvHLG,
 				}
 			}
-			display_f("Accusé", "Accusé reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge))
-			display_f("Accusé", fmt.Sprintf("mon tab %#v", tab))
+			utils.Display_f("Accusé", "Accusé reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
+			utils.Display_f("Accusé", fmt.Sprintf("mon tab %#v", tab), c.Nom)
 
 			//envoyer( [accusé] hi ) à Sj
 			if tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
-				display_f("TENTATIVE", "Je vais tenter de voir si je suis le premier")
+				utils.Display_f("TENTATIVE", "Je vais tenter de voir si je suis le premier", c.Nom)
 
 				if isFirstRequest(tab, c.Nom, tab[c.Nom].Horloge) {
 					c.IsInSection = true
-					display_f("SC", "\n ======================")
-					display_f("SC", "Entrée en SC autorisée")
-					display_f("SC", "\n ======================")
+					utils.Display_f("SC", "\n ======================", c.Nom)
+					utils.Display_f("SC", "Entrée en SC autorisée", c.Nom)
+					utils.Display_f("SC", "\n ======================", c.Nom)
 					fmt.Print("debutSC\n")
 				}
 			}
 		} else {
-			display_f("ack", "message ack pas pour oim"+rcvmsg)
 			fmt.Println(rcvmsg)
 		}
 
 	case "send":
-		if findval(rcvmsg, "destinator") == *p_nom {
-			display_f("send", "send pour oim"+rcvmsg)
+		if utils.Findval(rcvmsg, "destinator", c.Nom) == *p_nom {
+			utils.Display_f("send", "send pour oim"+rcvmsg, c.Nom)
 
 			fmt.Println("receive")
 		} else {
-			display_f("send", "send pas pour oim"+rcvmsg)
+			utils.Display_f("send", "send pas pour oim"+rcvmsg, c.Nom)
 			fmt.Println(rcvmsg)
 		}
 
 	default:
 		if sender == *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrête
-			display_e("main", "Arret du message :"+rcvmsg)
+			utils.Display_e("main", "Arret du message :"+rcvmsg, c.Nom)
 		} else {
-			display_e("main", "sender :"+findval(rcvmsg, "sender"))
-			display_e("main", "sender :"+*p_nom+"-"+strconv.Itoa(pid))
-			display_d("main", "message msg reçu: "+sndmsg)
+			utils.Display_e("main", "sender :"+utils.Findval(rcvmsg, "sender", c.Nom), c.Nom)
+			utils.Display_e("main", "sender :"+*p_nom+"-"+strconv.Itoa(pid), c.Nom)
+			utils.Display_d("main", "message msg reçu: "+sndmsg, c.Nom)
 			fmt.Println(rcvmsg)
 		}
 	}
 }
 
+func (c *Controller) IsFromApp(rcvmsg string) bool {
+	sndmsg := utils.Findval(rcvmsg, "msg", c.Nom)
+	if sndmsg == "" {
+		return true //si ce n'est pas formaté, ça veut dire qu'on récupère le message de l'app
+	}
+	return false //sinon de l'app
+}
+
 func (c *Controller) HandleMessage() {
 	var rcvmsg string
-
-	var sndmsg string
 	for {
 		fmt.Scanln(&rcvmsg)
-		time.Sleep(50 * time.Millisecond)
-		display_d("main", "received : "+rcvmsg)
-		//rcvVC := utils.DecodeVC(findval(rcvmsg, "VC"))
-		//rcvHLG, _ := strconv.Atoi(findval(rcvmsg, "hlg"))
-		sndmsg = findval(rcvmsg, "msg")
+
+		time.Sleep(50 * time.Millisecond) //temps d'attente du backend
+		utils.Display_d("main", "received : "+rcvmsg, c.Nom)
 
 		/*MESSAGE DE L'APP*/
-		if sndmsg == "" { //si ce n'est pas formaté, ça veut dire qu'on récupère le message de l'app
+		if c.IsFromApp(rcvmsg) {
 			c.handleAppMessage(rcvmsg)
 			/*MESSAGE DU CTRL*/
 		} else {
@@ -306,28 +254,26 @@ func (c *Controller) HandleMessage() {
 func isFirstRequest(tab map[string]EtatReqSite, me string, h int) bool {
 	for k, info := range tab {
 		if k == me {
-			display_f("TENTATIVE", "c'est moi, je passe")
+			//utils.Display_f("TENTATIVE", "c'est moi, je passe")
 			continue
 		}
 		if info.TypeRequete == Requete {
 			if info.Horloge < h {
-				display_f("TENTATIVE RATEE", fmt.Sprintf("ca passe pas pour %d >= %d", info.Horloge, h))
+				//utils.Display_f("TENTATIVE RATEE", fmt.Sprintf("ca passe pas pour %d >= %d", info.Horloge, h))
 
 				return false
 			}
-			display_f("TENTATIVE", fmt.Sprintf("ca passe pour %d >= %d", info.Horloge, h))
+			//utils.Display_f("TENTATIVE", fmt.Sprintf("ca passe pour %d >= %d", info.Horloge, h))
 
 		}
 	}
 	return true
 }
 
-func less(vc1 map[string]int, name1 string, vc2 map[string]int, name2 string) bool {
-	// Compare (vc1, name1) < (vc2, name2)
-	v1 := vc1[name1]
-	v2 := vc2[name2]
-	if v1 != v2 {
-		return v1 < v2
-	}
-	return name1 < name2
+func main() {
+	flag.Parse()
+
+	nom := *p_nom + "-" + strconv.Itoa(os.Getpid())
+	ctrl := NewController(nom)
+	ctrl.HandleMessage()
 }

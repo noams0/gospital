@@ -59,49 +59,12 @@ func NewApp(name string) *App {
 	}
 }
 
-var mu = &sync.Mutex{}
-
-func display_d(where string, what string) {
-	stderr.Printf("%s + [%.6s %d] %-8.8s : %s\n%s", utils.ColorBlue, *p_nom, pid, where, what, utils.ColorReset)
-}
-func display_w(where string, what string) {
-	stderr.Printf("%s * [%.6s %d] %-8.8s : %s\n%s", utils.ColorYellow, *p_nom, pid, where, what, utils.ColorReset)
-}
-func display_e(where string, what string) {
-	stderr.Printf("%s ! [%.6s %d] %-8.8s : %s\n%s", utils.ColorRed, *p_nom, pid, where, what, utils.ColorReset)
-}
-
-func findval(msg string, key string) string {
-	if len(msg) < 4 {
-		display_w("findval", "message trop court : "+msg)
-		return ""
-	}
-	sep := msg[0:1]
-	tab_allkeyvals := strings.Split(msg[1:], sep)
-
-	for _, keyval := range tab_allkeyvals {
-		if len(keyval) < 3 {
-			display_w("findval", "clé-valeur trop courte : "+keyval)
-			continue
-		}
-		equ := keyval[0:1]
-		tabkeyval := strings.SplitN(keyval[1:], equ, 2)
-		if len(tabkeyval) != 2 {
-			continue
-		}
-		if tabkeyval[0] == key {
-			return tabkeyval[1]
-		}
-	}
-	return ""
-}
-
 func (a *App) receive() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		msg := scanner.Text()
 		globalMutex.Lock()
-		display_w("receive", "reception <"+msg+">")
+		utils.Display_w("receive", "reception <"+msg+">", a.name)
 		if msg == "receive" {
 			go a.waitingFoReceivng()
 		}
@@ -109,9 +72,9 @@ func (a *App) receive() {
 			a.inSC = true
 			a.waitingSC = false
 			a.doctorInfo.ActivityLog = append([]string{"DebSC"}, a.doctorInfo.ActivityLog...)
-		} else if findval(msg, "type") == "new_data" {
-			display_w("NEW_DATA", "IL FAUT MAJ")
-			data := findval(msg, "new_data")
+		} else if utils.Findval(msg, "type", a.name) == "new_data" {
+			utils.Display_w("NEW_DATA", "IL FAUT MAJ", a.name)
+			data := utils.Findval(msg, "new_data", a.name)
 			pairs := strings.Split(data, "|")
 			for _, pair := range pairs {
 				parts := strings.Split(pair, "=")
@@ -120,11 +83,11 @@ func (a *App) receive() {
 					val, err := strconv.Atoi(parts[1])
 					if err == nil {
 						a.doctorInfo.DoctorsCount[appName] = val
-						display_w("NEW_DATA", fmt.Sprintf("Mise à jour : %s -> %d", appName, val))
+						utils.Display_w("NEW_DATA", fmt.Sprintf("Mise à jour : %s -> %d", appName, val), a.name)
 						//a.doctorInfo.ActivityLog = append([]string{"NewData"}, a.doctorInfo.ActivityLog...)
 
 					} else {
-						display_e("NEW_DATA", "Erreur de conversion pour "+pair)
+						utils.Display_e("NEW_DATA", "Erreur de conversion pour "+pair, a.name)
 					}
 				}
 			}
@@ -132,7 +95,7 @@ func (a *App) receive() {
 		globalMutex.Unlock()
 	}
 	if err := scanner.Err(); err != nil {
-		display_e("receive", "erreur de lecture: "+err.Error())
+		utils.Display_e("receive", "erreur de lecture: "+err.Error(), a.name)
 	}
 }
 
@@ -169,7 +132,6 @@ func (a *App) waitingFoSending(destinator string) {
 	if a.doctorInfo.DoctorsCount[*p_nom] < 0 {
 		a.doctorInfo.DoctorsCount[*p_nom] = 0
 	}
-
 	new_data := ""
 	for site, count := range a.doctorInfo.DoctorsCount {
 		new_data += fmt.Sprintf("|%s=%d", site, count)
@@ -180,7 +142,7 @@ func (a *App) waitingFoSending(destinator string) {
 	a.doctorInfo.ActivityLog = append([]string{"FinSC"}, a.doctorInfo.ActivityLog...)
 	//msg = "send" + destinator
 	msg = utils.Msg_format("type", "send") + utils.Msg_format("destinator", destinator)
-	display_w("action :", msg)
+	utils.Display_w("action :", msg, a.name)
 	fmt.Print(msg + "\n")
 	a.doctorInfo.ActivityLog = append([]string{"Envoie"}, a.doctorInfo.ActivityLog...)
 
@@ -204,7 +166,7 @@ func (a *App) run() {
 	go a.receive()
 
 	for action := range a.actions {
-		display_w("action", fmt.Sprintf("%v", action["to"]))
+		utils.Display_w("action", fmt.Sprintf("%v", action["to"]), a.name)
 		if action["type"] == "send" && a.doctorInfo.DoctorsCount[*p_nom] > 0 {
 			destinator := strings.TrimSpace(action["to"].(string))
 			go a.waitingFoSending(destinator)
