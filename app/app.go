@@ -140,16 +140,18 @@ func (a *App) waitingFoSending(destinator string) {
 		new_data += fmt.Sprintf("|%s=%d", site, count)
 	}
 	//msg = "send" + destinator
-	msg := utils.Msg_format("type", "send") + utils.Msg_format("destinator", destinator)
-	utils.Display_w("action :", msg, a.name)
-	fmt.Print(msg + "\n")
+
 	a.doctorInfo.ActivityLog = append([]string{"Envoie"}, a.doctorInfo.ActivityLog...)
 
-	msg = utils.Msg_format("type", "finSC") + utils.Msg_format("new_data", new_data)
+	msg := utils.Msg_format("type", "finSC") + utils.Msg_format("new_data", new_data)
 
 	fmt.Print(msg + "\n")
 	a.doctorInfo.ActivityLog = append([]string{"FinSC"}, a.doctorInfo.ActivityLog...)
+	//LIBERATION SC PUIS SEND => SINON BUG
 
+	msg = utils.Msg_format("type", "send") + utils.Msg_format("destinator", destinator)
+	utils.Display_w("action :", msg, a.name)
+	fmt.Print(msg + "\n")
 	a.inSC = false
 }
 

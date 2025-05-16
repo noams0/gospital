@@ -82,25 +82,39 @@ function envoyerMedecin(site) {
   socket.send(JSON.stringify(message))
 }
 
+function demanderSnapshot() {
+  const message = {
+    type: "snapshot"
+  }
+  socket.send(JSON.stringify(message))
+}
+
+
 onUnmounted(() => {
   if (socket) socket.close()
 })
 </script>
 
 <template>
-  <div class="hospital" v-for="(count, site) in doctorCounts" :key="site">
-    <h2>{{ site }}</h2>
-    <div class="doctors">
-      <span v-for="n in count" :key="n">🧑‍⚕️</span>
+  <button @click="demanderSnapshot" style="margin-bottom: 20px">
+    🔄 Déclencher une sauvegarde instantanée
+  </button>
+  <div class="hospital-container">
+    <div class="hospital" v-for="(count, site) in doctorCounts" :key="site">
+      <h2>{{ site }}</h2>
+      <div class="doctors">
+        <span v-for="n in count" :key="n">🧑‍⚕️</span>
+      </div>
+      <p>{{ count }} médecin(s)</p>
+      <button
+          v-if="site !== doctorCountsSender && doctorCountsSenderNb > 0"
+          @click="envoyerMedecin(site)"
+      >
+        Envoyer un médecin
+      </button>
     </div>
-    <p>{{ count }} médecin(s)</p>
-    <button
-        v-if="site !== doctorCountsSender && doctorCountsSenderNb > 0"
-        @click="envoyerMedecin(site)"
-    >
-      Envoyer un médecin
-    </button>
   </div>
+
   <div class="activity-log">
     <h3>Journal des activités</h3>
     <ul>
@@ -129,12 +143,18 @@ button {
   justify-content: center;
 }
 
+.hospital-container{
+  display: flex;
+  ;
+}
 .hospital {
+
   color: black;
   background: #f0f8ff;
-  border: 2px solid #0077b6;
+  border: 2px solid #b60006;
   border-radius: 10px;
   padding: 1rem;
+  margin: 5px;
   width: 180px;
   text-align: center;
   box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
