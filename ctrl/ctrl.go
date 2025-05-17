@@ -9,17 +9,31 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 )
+
+func max(a, b int) int {
+    if a > b {
+        return a
+    }
+    return b
+}
+
+var N = 3
 
 var pid = os.Getpid()
 var stderr = log.New(os.Stderr, "", 0)
-
 type MessageType string
 
 const (
 	Requete    MessageType = "request"
 	Liberation MessageType = "liberation"
 	Accuse     MessageType = "ack"
+)
+const (
+	EtatMsg MessageType = "etat"
+	PrePost MessageType = "prepost"
+	AppMsg  MessageType = "app_msg"
 )
 
 type EtatReqSite struct {
@@ -29,12 +43,41 @@ type EtatReqSite struct {
 
 var tab = make(map[string]EtatReqSite)
 
+type Couleur string
+
+const (
+    Blanc Couleur = "blanc"
+    Rouge Couleur = "rouge"
+)
+
+
+type Snapshot struct {
+	Couleur                  Couleur                      // "blanc" ou "rouge"
+	EtatGlobal               map[string]interface{}      
+	EtatLocal                map[string]interface{}
+	Initiateur               bool
+	NbEtatAttendu            int
+	NbMessagePrepostAttendu  int
+	Bilan                    int
+}
+
 type Controller struct {
 	Nom         string
 	Horloge     int
 	VectorClock map[string]int
 	Tab         map[string]EtatReqSite
 	IsInSection bool
+	Snapshot Snapshot
+
+}
+type EtatMessage struct {
+	EtatLocal map[string]interface{}
+	Bilan     int
+}
+type CtrlMessage struct {
+	Type    MessageType
+	Contenu string
+	Couleur Couleur
 }
 
 func NewController(nom string) *Controller {
@@ -44,6 +87,7 @@ func NewController(nom string) *Controller {
 		VectorClock: make(map[string]int),
 		Tab:         make(map[string]EtatReqSite),
 		IsInSection: false,
+		Snapshot: *NewSnapshot(),
 	}
 }
 
@@ -89,6 +133,10 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 		var destCtrl string = utils.App_to_ctrl(destApp)
 		utils.Display_f("destinator :", destCtrl, c.Nom)
 		fmt.Println(utils.Msg_format("type", "send") + utils.Msg_format("destinator", destCtrl) + utils.Msg_format("sender", c.Nom) + utils.Msg_format("msg", "send") + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
+	case "snapshot":
+    	c.Horloge++
+    	utils.Display_f("snapshot", "Demande de snapshot reçue de l'application", c.Nom)
+   		c.DebutSnapshot() // Lancer le processus de snapshot
 	default:
 		//fmt.Println(utils.Msg_format("sender", c.Nom) + utils.Msg_format("msg", rcvmsg) + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	case "debutSC":
@@ -221,7 +269,14 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			utils.Display_f("send", "send pas pour oim"+rcvmsg, c.Nom)
 			fmt.Println(rcvmsg)
 		}
-
+    case "snapshot":
+	    c.handleSnapshotMessage(rcvmsg)
+    case string(EtatMsg):
+		var etatRecu map[string]interface{}
+		var bilanRecu int
+		c.ReceptionMsgEtat(etatRecu, bilanRecu)
+	case string(PrePost):
+		c.ReceptionMsgPrepost(rcvmsg)
 	default:
 		if sender == *p_nom+"-"+strconv.Itoa(pid) { // Si le message a fait un tour, il faut qu'il s'arrête
 			utils.Display_e("main", "Arret du message :"+rcvmsg, c.Nom)
@@ -231,6 +286,13 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			utils.Display_d("main", "message msg reçu: "+sndmsg, c.Nom)
 			fmt.Println(rcvmsg)
 		}
+	}
+	if c.Snapshot.Couleur == Rouge && sender != c.Nom {
+		senderCouleur := utils.Findval(rcvmsg, "couleur", c.Nom)
+		if senderCouleur == "" {
+			senderCouleur = string(Blanc) 
+		}
+		c.ReceptionMsgAppDeCtrl(rcvmsg, Couleur(senderCouleur))
 	}
 }
 
@@ -310,6 +372,259 @@ func IsCtrlNumberLess(nom1, nom2 string) bool {
 	return x < y
 }
 
+//initialisation de la sauvegarde
+func NewSnapshot() *Snapshot {
+    return &Snapshot{
+        Couleur:                 Blanc,
+        EtatGlobal:              make(map[string]interface{}),
+		EtatLocal:               make(map[string]interface{}),
+        Initiateur:              false,
+        NbEtatAttendu:           N,
+        Bilan:                   0,
+        NbMessagePrepostAttendu: 0,
+    }
+}
+
+//maj état local
+func (s *Snapshot) UpdateEtatLocal(c *Controller) {
+	s.EtatLocal = map[string]interface{}{
+		"Horloge":      c.Horloge,
+		"InSection":    c.IsInSection,
+		"DoctorsCount": CopyDoctorsCount(),
+		"Tab":          c.Tab,
+	}
+}
+// début 
+/*func (c *Controller) DebutSnapshot() {
+    // Le site devient rouge
+    c.Snapshot.Couleur = Rouge
+    
+    // Initialiser l'état global avec l'état local
+    c.Snapshot.UpdateEtatLocal(c)
+    c.Snapshot.EtatGlobal = c.Snapshot.EtatLocal
+    
+    // Ce site est l'initiateur
+    c.Snapshot.Initiateur = true
+    
+    // Nombre d'états attendus = N-1
+    c.Snapshot.NbEtatAttendu = N - 1
+    
+    //Le site initiateur donne son bilan
+    c.Snapshot.NbMessagePrepostAttendu = c.Snapshot.Bilan
+    
+}*/
+func (c *Controller) DebutSnapshot() {
+	// Devenir rouge
+	c.Snapshot.Couleur = Rouge
+	c.Snapshot.Initiateur = true
+
+	// Sauvegarde de l'état local (ex: horloge, SC, DoctorsCount)
+	etat := map[string]interface{}{
+		"Horloge":     c.Horloge,
+		"InSection":   c.IsInSection,
+		"DoctorsCount": CopyDoctorsCount(), // à adapter à ta logique
+	}
+	c.Snapshot.EtatGlobal[c.Nom] = etat
+	c.Snapshot.NbEtatAttendu = N - 1
+
+	utils.Display_e("SNAPSHOT", fmt.Sprintf("Début snapshot par %s", c.Nom), c.Nom)
+	utils.Display_e("SNAPSHOT", fmt.Sprintf("État local sauvegardé : %#v", etat), c.Nom)
+
+	// Envoi de messages de "marqueur" aux autres (ex: broadcast VC)
+	for i := 1; i <= N; i++ {
+		if fmt.Sprintf("ctrl_%d", i) == c.Nom {
+			continue
+		}
+		msg := utils.Msg_format("type", "snapshot") +
+			utils.Msg_format("sender", c.Nom) +
+			utils.Msg_format("VC", Encodehorloge(c.VectorClock)) +
+			utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
+
+		fmt.Println(msg)
+	}
+}
+
+
+// reception d'un msg état
+func (c *Controller) ReceptionMsgEtat(etatRecu map[string]interface{}, bilanRecu int) {
+    if c.Snapshot.Initiateur {
+        // Fusionner avec l'état global
+        for k, v := range etatRecu {
+            c.Snapshot.EtatGlobal[k] = v
+        }
+        
+        // Décrémenter le nombre d'états attendus
+        c.Snapshot.NbEtatAttendu--
+        
+        // Incrémenter le nombre de messages prépost attendus
+        c.Snapshot.NbMessagePrepostAttendu += bilanRecu
+        
+        // Vérifier si l'instantané est terminé
+        c.VerifierFinSnapshot()
+    } else {
+        // Si non initiateur envoyer message sur l'anneau
+        etatMsg := EtatMessage{
+            EtatLocal: etatRecu,
+            Bilan:     bilanRecu,
+        }
+        c.EnvoyerSurAnneau(EtatMsg, etatMsg)
+    }
+}
+
+//reception msg prépost
+func (c *Controller) ReceptionMsgPrepost(message string) {
+    if c.Snapshot.Initiateur {
+        // Ajouter le message à l'état global
+        prepostKey := "prepost_" + strconv.Itoa(len(c.Snapshot.EtatGlobal))
+        c.Snapshot.EtatGlobal[prepostKey] = message
+        
+        // Décrémenter le nombre de messages prépost attendus
+        c.Snapshot.NbMessagePrepostAttendu--
+        
+        // Vérifier si l'instantané est terminé
+        c.VerifierFinSnapshot()
+    } else {
+        // Si non initiateur, simplement transmettre le message sur l'anneau
+        c.EnvoyerSurAnneau(PrePost, message)
+    }
+}
+//reception msg app de ctl
+func (c *Controller) ReceptionMsgAppDeCtrl(message string, couleurRecue Couleur) {
+    // Décrémenter le bilan de 1
+    c.Snapshot.Bilan--
+    
+    if couleurRecue == Rouge && c.Snapshot.Couleur == Blanc {
+        // Le site devient rouge
+        c.Snapshot.Couleur = Rouge
+        
+        // Mettre à jour l'état local et l'envoyer sur l'anneau
+        c.Snapshot.UpdateEtatLocal(c)
+        etatMsg := EtatMessage{
+            EtatLocal: c.Snapshot.EtatLocal,
+            Bilan:     c.Snapshot.Bilan,
+        }
+        c.EnvoyerSurAnneau(EtatMsg, etatMsg)
+    } else if couleurRecue == Blanc && c.Snapshot.Couleur == Rouge {
+        // C'est un message prépost
+        c.EnvoyerSurAnneau(PrePost, message)
+    }
+    
+    // Transmettre le message à l'application
+    c.ForwardToApp(message)
+}
+func (c *Controller) ForwardToApp(message string) {
+    // Décrémenter le bilan (message sortant)
+    c.Snapshot.Bilan--
+
+    // Construire le message à transmettre avec la couleur
+    ctrlMsg := CtrlMessage{
+        Type:    AppMsg,
+        Contenu: message,
+        Couleur: c.Snapshot.Couleur,
+    }
+
+    // Envoyer directement sur l'anneau
+    c.EnvoyerSurAnneau(AppMsg, ctrlMsg)
+}
+func (c *Controller) handleSnapshotMessage(msg string) {
+	sender := utils.Findval(msg, "msg", c.Nom)
+
+
+	if c.Snapshot.Couleur == Blanc {
+		// Premier marqueur reçu : devenir rouge et sauvegarder l'état local
+		c.Snapshot.Couleur = Rouge
+
+		etat := map[string]interface{}{
+			"Horloge":      c.Horloge,
+			"InSection":    c.IsInSection,
+			"DoctorsCount": CopyDoctorsCount(), // à adapter
+		}
+		c.Snapshot.EtatGlobal[c.Nom] = etat
+		c.Snapshot.NbEtatAttendu = N - 1
+
+		utils.Display_e("SNAPSHOT", fmt.Sprintf("%s devient rouge suite à snapshot reçu de %s", c.Nom, sender), c.Nom)
+
+		// Propagation du marqueur aux autres
+		for i := 1; i <= N; i++ {
+			target := fmt.Sprintf("ctrl_%d", i)
+			if target == c.Nom || target == sender {
+				continue
+			}
+
+			msgSnapshot := utils.Msg_format("type", "snapshot") +
+				utils.Msg_format("sender", c.Nom) +
+				utils.Msg_format("VC", Encodehorloge(c.VectorClock)) +
+				utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
+
+			fmt.Println(msgSnapshot)
+		}
+	} else {
+		// Si déjà rouge, on ignore ce marqueur (état déjà pris)
+		utils.Display_e("SNAPSHOT", fmt.Sprintf("Marqueur reçu de %s, mais état déjà pris.", sender), c.Nom)
+	}
+}
+func CopyDoctorsCount() map[string]int {
+
+	return make(map[string]int)
+}
+
+func Encodehorloge(vc map[string]int) string {
+	var result string
+	for k, v := range vc {
+		result += fmt.Sprintf("%s=%d|", k, v)
+	}
+	return strings.TrimSuffix(result, "|")
+}
+// Vérification de la fin du snapshot
+func (c *Controller) VerifierFinSnapshot() {
+	if c.Snapshot.NbEtatAttendu <= 0 && c.Snapshot.NbMessagePrepostAttendu <= 0 {
+		utils.Display_e("SNAPSHOT", "Snapshot terminé!", c.Nom)
+		utils.Display_e("SNAPSHOT", fmt.Sprintf("État global final: %#v", c.Snapshot.EtatGlobal), c.Nom)
+		
+		// Reset snapshot state for next use
+		c.Snapshot = *NewSnapshot()
+	}
+}
+// Envoyer un message sur l'anneau
+func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) {
+	// Cette fonction construit un message et l'envoie sur l'anneau
+	// Format du message dépend du type de message
+	
+	var msg string
+	
+	switch msgType {
+	case EtatMsg:
+		if etatMsg, ok := content.(EtatMessage); ok {
+			// Formater le message d'état (à adapter selon votre format)
+			etatStr := fmt.Sprintf("%v", etatMsg.EtatLocal) // Simple string representation
+			msg = utils.Msg_format("type", string(EtatMsg)) +
+				utils.Msg_format("sender", c.Nom) +
+				utils.Msg_format("etat", etatStr) +
+				utils.Msg_format("bilan", strconv.Itoa(etatMsg.Bilan)) +
+				utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
+		}
+	case PrePost:
+		if prepostMsg, ok := content.(string); ok {
+			msg = utils.Msg_format("type", string(PrePost)) +
+				utils.Msg_format("sender", c.Nom) +
+				utils.Msg_format("msg", prepostMsg) +
+				utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
+		}
+	case AppMsg:
+		if appMsg, ok := content.(CtrlMessage); ok {
+			msg = utils.Msg_format("type", string(AppMsg)) +
+				utils.Msg_format("sender", c.Nom) +
+				utils.Msg_format("msg", appMsg.Contenu) +
+				utils.Msg_format("couleur",string(appMsg.Couleur)) +
+				utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
+		}
+	}
+	
+	if msg != "" {
+		// Envoyer le message (pour l'anneau, on l'imprime simplement)
+		fmt.Println(msg)
+	}
+}
 func main() {
 	flag.Parse()
 

@@ -155,10 +155,6 @@ func (a *App) waitingFoSending(destinator string) {
 	a.inSC = false
 }
 
-func (a *App) waitingForSnapshot() {
-	fmt.Print(utils.Msg_format("type", "snapshot") + "\n")
-}
-
 func (a *App) run() {
 	var wsURL string
 	switch a.name {
@@ -176,17 +172,25 @@ func (a *App) run() {
 	go a.receive()
 
 	for action := range a.actions {
-		utils.Display_w("action", fmt.Sprintf("%v", action["type"]), a.name)
+		utils.Display_w("action", fmt.Sprintf("%v", action["to"]), a.name)
 		if action["type"] == "send" && a.doctorInfo.DoctorsCount[*p_nom] > 0 {
 			destinator := strings.TrimSpace(action["to"].(string))
 			go a.waitingFoSending(destinator)
-		}
-		if action["type"] == "snapshot" {
-			go a.waitingForSnapshot()
-		}
+		} else if action["type"] == "snapshot" {
+		go a.snapshot()
+	}
 	}
 }
-
+func (a *App) snapshot() {
+    a.doctorInfo.ActivityLog = append([]string{"Snapshot"}, a.doctorInfo.ActivityLog...)
+    
+    // Formatage du message pour le contrôleur
+    msg := utils.Msg_format("type", "snapshot")
+    
+    // Envoi du message au contrôleur
+    utils.Display_w("snapshot", "Demande de snapshot envoyée", a.name)
+    fmt.Print(msg + "\n")
+}
 func main() {
 	flag.Parse()
 	app := NewApp(*p_nom)
