@@ -68,6 +68,7 @@ type Controller struct {
 	Tab         map[string]EtatReqSite
 	IsInSection bool
 	Snapshot Snapshot
+	SnapshotEnCours bool
 
 }
 type EtatMessage struct {
@@ -134,9 +135,12 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 		utils.Display_f("destinator :", destCtrl, c.Nom)
 		fmt.Println(utils.Msg_format("type", "send") + utils.Msg_format("destinator", destCtrl) + utils.Msg_format("sender", c.Nom) + utils.Msg_format("msg", "send") + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	case "snapshot":
-    	c.Horloge++
-    	utils.Display_f("snapshot", "Demande de snapshot reçue de l'application", c.Nom)
-   		c.DebutSnapshot() // Lancer le processus de snapshot
+    	if !c.SnapshotEnCours {
+            c.SnapshotEnCours = true
+            c.Horloge++
+            utils.Display_f("snapshot", "Demande de snapshot reçue de l'application", c.Nom)
+            c.DebutSnapshot()
+        }	
 	default:
 		//fmt.Println(utils.Msg_format("sender", c.Nom) + utils.Msg_format("msg", rcvmsg) + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	case "debutSC":
@@ -429,7 +433,6 @@ func (c *Controller) DebutSnapshot() {
 
 	utils.Display_e("SNAPSHOT", fmt.Sprintf("Début snapshot par %s", c.Nom), c.Nom)
 	utils.Display_e("SNAPSHOT", fmt.Sprintf("État local sauvegardé : %#v", etat), c.Nom)
-
 	// Envoi de messages de "marqueur" aux autres (ex: broadcast VC)
 	for i := 1; i <= N; i++ {
 		if fmt.Sprintf("ctrl_%d", i) == c.Nom {
