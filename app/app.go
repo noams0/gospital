@@ -182,15 +182,26 @@ func (a *App) run() {
 	}
 }
 func (a *App) snapshot() {
-    a.doctorInfo.ActivityLog = append([]string{"Snapshot"}, a.doctorInfo.ActivityLog...)
-    
-    // Formatage du message pour le contrôleur
-    msg := utils.Msg_format("type", "snapshot")
-    
-    // Envoi du message au contrôleur
-    utils.Display_w("snapshot", "Demande de snapshot envoyée", a.name)
-    fmt.Print(msg + "\n")
+	utils.Display_e("app snapshot", fmt.Sprintf("!!!app snapshot"), a.name)
+
+	a.doctorInfo.ActivityLog = append([]string{"Snapshot"}, a.doctorInfo.ActivityLog...)
+
+	payload := a.doctorInfo.SendDoctorInfo()
+
+	var new_data strings.Builder
+	for site, count := range payload.DoctorsCount {
+		new_data.WriteString(fmt.Sprintf("|%s=%d", site, count))
+	}
+
+	utils.Display_w("snapshot", fmt.Sprintf("Envoi snapshot: %v", payload.DoctorsCount), a.name)
+
+	msg := utils.Msg_format("type", "snapshot") +
+		utils.Msg_format("sender", payload.Sender) +
+		utils.Msg_format("new_data", new_data.String())
+
+	fmt.Print(msg + "\n")
 }
+
 func main() {
 	flag.Parse()
 	app := NewApp(*p_nom)
