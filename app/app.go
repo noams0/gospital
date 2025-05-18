@@ -27,21 +27,9 @@ func (d *DoctorInfo) SendDoctorInfo() utils.DoctorPayload {
 	}
 }
 
-type DoctorInfo struct {
-	DoctorsCount map[string]int
-	ActivityLog  []string
-}
-
-// Struct App
-type App struct {
-	name       string
-	doctorInfo DoctorInfo
-	actions    chan map[string]interface{}
-	waitingSC  bool
-	inSC       bool
-}
 
 func NewApp(name string) *App {
+	/*initialisation de l'application*/
 	return &App{
 		name: name,
 		doctorInfo: DoctorInfo{
@@ -59,101 +47,6 @@ func NewApp(name string) *App {
 	}
 }
 
-func (a *App) receive() {
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		msg := scanner.Text()
-		globalMutex.Lock()
-		utils.Display_w("receive", "reception <"+msg+">", a.name)
-		if msg == "receive" {
-			go a.waitingFoReceivng()
-		}
-		if strings.HasPrefix(msg, "TAB_REQ") {
-			a.doctorInfo.ActivityLog = append([]string{msg}, a.doctorInfo.ActivityLog...)
-
-		} else if msg == "debutSC" && a.waitingSC {
-			a.inSC = true
-			a.waitingSC = false
-			a.doctorInfo.ActivityLog = append([]string{"DebSC"}, a.doctorInfo.ActivityLog...)
-		} else if utils.Findval(msg, "type", a.name) == "new_data" {
-			utils.Display_w("NEW_DATA", "IL FAUT MAJ", a.name)
-			data := utils.Findval(msg, "new_data", a.name)
-			pairs := strings.Split(data, "|")
-			for _, pair := range pairs {
-				parts := strings.Split(pair, "=")
-				if len(parts) == 2 {
-					appName := parts[0]
-					val, err := strconv.Atoi(parts[1])
-					if err == nil {
-						a.doctorInfo.DoctorsCount[appName] = val
-						utils.Display_w("NEW_DATA", fmt.Sprintf("Mise à jour : %s -> %d", appName, val), a.name)
-						//a.doctorInfo.ActivityLog = append([]string{"NewData"}, a.doctorInfo.ActivityLog...)
-
-					} else {
-						utils.Display_e("NEW_DATA", "Erreur de conversion pour "+pair, a.name)
-					}
-				}
-			}
-		}
-		globalMutex.Unlock()
-	}
-	if err := scanner.Err(); err != nil {
-		utils.Display_e("receive", "erreur de lecture: "+err.Error(), a.name)
-	}
-}
-
-func (a *App) waitingFoReceivng() {
-	a.doctorInfo.ActivityLog = append([]string{"Receive"}, a.doctorInfo.ActivityLog...)
-
-	fmt.Print(utils.Msg_format("type", "demandeSC") + "\n")
-
-	a.waitingSC = true
-	a.doctorInfo.ActivityLog = append([]string{"DemSC"}, a.doctorInfo.ActivityLog...)
-	for !a.inSC {
-		time.Sleep(100 * time.Millisecond)
-	}
-	a.doctorInfo.DoctorsCount[*p_nom]++
-	new_data := ""
-	for site, count := range a.doctorInfo.DoctorsCount {
-		new_data += fmt.Sprintf("|%s=%d", site, count)
-	}
-	msg := utils.Msg_format("type", "finSC") + utils.Msg_format("new_data", new_data)
-
-	fmt.Print(msg + "\n")
-	a.doctorInfo.ActivityLog = append([]string{"FinSC"}, a.doctorInfo.ActivityLog...)
-
-}
-
-func (a *App) waitingFoSending(destinator string) {
-	fmt.Print(utils.Msg_format("type", "demandeSC") + "\n")
-	a.waitingSC = true
-	a.doctorInfo.ActivityLog = append([]string{"DemSC"}, a.doctorInfo.ActivityLog...)
-	for !a.inSC {
-		time.Sleep(100 * time.Millisecond)
-	}
-	a.doctorInfo.DoctorsCount[*p_nom]--
-	if a.doctorInfo.DoctorsCount[*p_nom] < 0 {
-		a.doctorInfo.DoctorsCount[*p_nom] = 0
-	}
-	new_data := ""
-	for site, count := range a.doctorInfo.DoctorsCount {
-		new_data += fmt.Sprintf("|%s=%d", site, count)
-	}
-	//msg = "send" + destinator
-
-	a.doctorInfo.ActivityLog = append([]string{"Envoie"}, a.doctorInfo.ActivityLog...)
-
-	msg := utils.Msg_format("type", "finSC") + utils.Msg_format("new_data", new_data)
-
-	fmt.Print(msg + "\n")
-	a.doctorInfo.ActivityLog = append([]string{"FinSC"}, a.doctorInfo.ActivityLog...)
-	//LIBERATION SC PUIS SEND => SINON BUG
-
-	msg = utils.Msg_format("type", "send") + utils.Msg_format("destinator", destinator)
-	utils.Display_w("action :", msg, a.name)
-	fmt.Print(msg + "\n")
-	a.inSC = false
-}
 
 func (a *App) run() {
 	var wsURL string
@@ -181,16 +74,7 @@ func (a *App) run() {
 	}
 	}
 }
-func (a *App) snapshot() {
-    a.doctorInfo.ActivityLog = append([]string{"Snapshot"}, a.doctorInfo.ActivityLog...)
-    
-    // Formatage du message pour le contrôleur
-    msg := utils.Msg_format("type", "snapshot")
-    
-    // Envoi du message au contrôleur
-    utils.Display_w("snapshot", "Demande de snapshot envoyée", a.name)
-    fmt.Print(msg + "\n")
-}
+
 func main() {
 	flag.Parse()
 	app := NewApp(*p_nom)
