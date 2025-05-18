@@ -24,12 +24,14 @@ func (d *DoctorInfo) SendDoctorInfo() utils.DoctorPayload {
 		Sender:       *p_nom,
 		DoctorsCount: d.DoctorsCount,
 		ActivityLog:  d.ActivityLog,
+		Snapshot:     d.Snapshot,
 	}
 }
 
 type DoctorInfo struct {
 	DoctorsCount map[string]int
 	ActivityLog  []string
+	Snapshot     string
 }
 
 // Struct App
@@ -68,6 +70,12 @@ func (a *App) receive() {
 		if msg == "receive" {
 			go a.waitingFoReceivng()
 		}
+		if strings.HasPrefix(msg, "endSnapshot") {
+			snapshotData := strings.TrimPrefix(msg, "endSnapshot")
+			a.doctorInfo.Snapshot = snapshotData
+
+		}
+
 		if strings.HasPrefix(msg, "TAB_REQ") {
 			a.doctorInfo.ActivityLog = append([]string{msg}, a.doctorInfo.ActivityLog...)
 
@@ -177,8 +185,8 @@ func (a *App) run() {
 			destinator := strings.TrimSpace(action["to"].(string))
 			go a.waitingFoSending(destinator)
 		} else if action["type"] == "snapshot" {
-		go a.snapshot()
-	}
+			go a.snapshot()
+		}
 	}
 }
 func (a *App) snapshot() {
@@ -197,7 +205,8 @@ func (a *App) snapshot() {
 
 	msg := utils.Msg_format("type", "snapshot") +
 		utils.Msg_format("sender", payload.Sender) +
-		utils.Msg_format("new_data", new_data.String())
+		utils.Msg_format("data", new_data.String())
+	utils.Msg_format("data", new_data.String())
 
 	fmt.Print(msg + "\n")
 }

@@ -18,11 +18,14 @@ onMounted(() => {
   socket.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
-      console.log(data)
+      // console.log(data)
       doctorCounts.value = data.doctors
       doctorCountsSender.value = data.sender
       activityLog.value = data.activity_log || []
-      console.log(activityLog.value)
+      snapshot.value = data.snapshot
+      console.log(snapshot.value)
+
+
     } catch (err) {
       console.error('Message non JSON :', event.data)
     }
@@ -39,6 +42,35 @@ onMounted(() => {
 })
 const doctorCountsSender = ref("")
 const activityLog = ref("")
+const snapshot = ref("")
+
+const snapshotParsed = computed(() => {
+  if (!snapshot.value || typeof snapshot.value !== 'string') return {}
+
+  const match = snapshot.value.match(/^endSnapshot\s+(.*)$/)
+  if (!match) return {}
+
+  try {
+    const rawJson = match[1]
+        .replace(/\\"/g, '"') // Corriger les guillemets échappés
+    const parsed = JSON.parse(rawJson)
+  console.log(parsed)
+    // Si certains sous-éléments sont encore des chaînes JSON, on les parse aussi
+    Object.keys(parsed).forEach(key => {
+      if (typeof parsed[key] === "string") {
+        try {
+          parsed[key] = JSON.parse(parsed[key])
+        } catch (e) {
+          // ignore
+        }
+      }
+    })
+    return parsed
+  } catch (e) {
+    console.error("Erreur parsing snapshot :", e)
+    return {}
+  }
+})
 
 const doctorCountsSenderNb = computed(() =>
 doctorCounts.value[doctorCountsSender.value]
@@ -126,6 +158,25 @@ onUnmounted(() => {
       />
     </ul>
   </div>
+  <div class="snapshot-display" v-if="snapshot.value !== ''">
+    <h3>📸 État global sauvegardé</h3>
+    {{ snapshot}}
+<!--    <div class="snapshot-site" v-for="(etat, site) in snapshotParsed" :key="site">-->
+<!--      <h4>{{ site }}</h4>-->
+<!--      <ul>-->
+<!--        <li><strong>Horloge :</strong> {{ etat.Horloge }}</li>-->
+<!--        <li><strong>InSection :</strong> {{ etat.InSection ? "Oui" : "Non" }}</li>-->
+<!--        <li><strong>Doctors :</strong>-->
+<!--          <ul>-->
+<!--            <li v-for="(count, doc) in etat.DoctorsCount" :key="doc">-->
+<!--              {{ doc }} : {{ count }}-->
+<!--            </li>-->
+<!--          </ul>-->
+<!--        </li>-->
+<!--      </ul>-->
+<!--    </div>-->
+  </div>
+
 
 </template>
 
@@ -213,6 +264,30 @@ button {
   background-color: #f8d7da;
   color: #721c24;
 }
+
+
+
+.snapshot-display {
+  color: black;
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #e0f7fa;
+  border-left: 4px solid #006064;
+}
+
+.snapshot-site {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.snapshot-site h4 {
+  margin-bottom: 0.3rem;
+  color: #00796b;
+}
+
 
 
 </style>
