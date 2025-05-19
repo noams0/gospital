@@ -69,14 +69,18 @@ func (a *App) receive() {
 		utils.Display_w("receive", "reception <"+msg+">", a.name)
 		if msg == "receive" {
 			go a.waitingFoReceivng()
-		}
-		if strings.HasPrefix(msg, "endSnapshot") {
+		} else if msg == "askForState" {
+			yrstate := a.doctorInfo.DoctorsCount[*p_nom]
+			str_yrstate := strconv.Itoa(yrstate)
+			stderr.Println(str_yrstate)
+			msg = utils.Msg_format("type", "yourState") + utils.Msg_format("etat_loacl", str_yrstate)
+			fmt.Println(msg)
+
+		} else if strings.HasPrefix(msg, "endSnapshot") {
 			snapshotData := strings.TrimPrefix(msg, "endSnapshot")
 			a.doctorInfo.Snapshot = snapshotData
 
-		}
-
-		if strings.HasPrefix(msg, "TAB_REQ") {
+		} else if strings.HasPrefix(msg, "TAB_REQ") {
 			a.doctorInfo.ActivityLog = append([]string{msg}, a.doctorInfo.ActivityLog...)
 
 		} else if msg == "debutSC" && a.waitingSC {
