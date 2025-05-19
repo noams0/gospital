@@ -24,6 +24,7 @@ var N = 3
 var pid = os.Getpid()
 var stderr = log.New(os.Stderr, "", 0)
 
+
 type MessageType string
 
 const (
@@ -40,6 +41,7 @@ const (
 
 type EtatReqSite struct {
 	Horloge     int
+	VectorClock map[string]int
 	TypeRequete MessageType
 }
 
@@ -71,6 +73,7 @@ type Snapshot struct {
 
 type Controller struct {
 	Nom             string
+	NomCourt        string
 	Horloge         int
 	VectorClock     map[string]int
 	Tab             map[string]EtatReqSite
@@ -88,11 +91,12 @@ type CtrlMessage struct {
 	Couleur Couleur
 }
 
-func NewController(nom string) *Controller {
+func NewController(nomcourt, nom string) *Controller {
 	return &Controller{
 		Nom:         nom,
+		NomCourt:    nomcourt,
 		Horloge:     0,
-		VectorClock: make(map[string]int),
+		VectorClock: utils.InitVC(N),
 		Tab:         make(map[string]EtatReqSite),
 		IsInSection: false,
 		Snapshot:    *NewSnapshot(),
@@ -101,6 +105,13 @@ func NewController(nom string) *Controller {
 
 var p_nom *string = flag.String("n", "ecrivain", "nom")
 
+func (c *Controller) Msg_Horloge() string {
+   msg := utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
+   c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
+   msg += utils.Msg_format("vc", utils.EncodeVC(c.VectorClock))
+   return msg
+}
+
 func (c *Controller) handleAppMessage(rcvmsg string) {
 	type_msg := utils.Findval(rcvmsg, "type", c.Nom)
 	utils.Display_d("main", "TYPE de la demande en provenance de l'app : "+type_msg, c.Nom)
@@ -108,9 +119,11 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 	switch type_msg {
 	case "demandeSC":
 		c.Horloge++
+                c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
 		c.Tab[c.Nom] = EtatReqSite{
 			TypeRequete: Requete,
 			Horloge:     c.Horloge,
+			VectorClock: c.VectorClock,
 		}
 		utils.Display_f("demandeSC", "Demande de SC locale, horloge : "+strconv.Itoa(c.Horloge), c.Nom)
 		fmt.Println(
@@ -118,12 +131,14 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", "1") +
 				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
-				utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
+                                c.Msg_Horloge())
 	case "finSC":
 		c.Horloge++
+                c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
 		c.Tab[c.Nom] = EtatReqSite{
 			TypeRequete: Liberation,
 			Horloge:     c.Horloge,
+			VectorClock: c.VectorClock,
 		}
 		c.IsInSection = false
 		utils.Display_f("finSC", "Fin de SC locale, horloge : "+strconv.Itoa(c.Horloge), c.Nom)
@@ -133,12 +148,13 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 			utils.Msg_format("type", "liberation") +
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", "finSC") +
-				utils.Msg_format("hlg", strconv.Itoa(c.Horloge)) +
+                                c.Msg_Horloge()+
 				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
 				utils.Msg_format("new_data", newData),
 		)
 	case "send":
 		c.Horloge++
+                c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
 		var destApp string = utils.Findval(rcvmsg, "destinator", c.Nom)
 		var destCtrl string = utils.App_to_ctrl(destApp)
 		utils.Display_f("destinator :", destCtrl, c.Nom)
@@ -148,7 +164,7 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", "send") +
 				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
-				utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
+                                c.Msg_Horloge())
 	case "yourState":
 		etat_local := utils.Findval(rcvmsg, "etat_loacl", c.Nom)
 		etat_local_full := map[string]string{c.Nom: etat_local}
@@ -189,7 +205,8 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 }
 
 func (c *Controller) handleCtrlMessage(rcvmsg string) {
-	rcvVC := utils.DecodeVC(utils.Findval(rcvmsg, "VC", c.Nom))
+	rcvVC := utils.DecodeVC(utils.Findval(rcvmsg, "vc", c.Nom))
+        c.VectorClock = utils.MaxVC(c.VectorClock, rcvVC, c.NomCourt)
 	rcvHLG, _ := strconv.Atoi(utils.Findval(rcvmsg, "hlg", c.Nom))
 	sndmsg := utils.Findval(rcvmsg, "msg", c.Nom)
 
@@ -221,6 +238,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			c.Tab[sender] = EtatReqSite{
 				TypeRequete: Requete,
 				Horloge:     rcvHLG,
+				VectorClock: rcvVC,
 			}
 			utils.Display_f(string(Requete), "Requête reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
 			//envoyer( [accusé] hi ) à Sj
@@ -234,7 +252,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 					utils.Msg_format("type", "ack") +
 					utils.Msg_format("sender", c.Nom) +
 					utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
-					utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
+                                        c.Msg_Horloge())
 			if c.Tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
 				if isFirstRequest(c.Tab, c.Nom, c.Tab[c.Nom].Horloge) {
 					c.IsInSection = true
@@ -253,6 +271,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			c.Tab[sender] = EtatReqSite{
 				TypeRequete: Liberation,
 				Horloge:     rcvHLG,
+				VectorClock: rcvVC,
 			}
 			new_data := utils.Findval(rcvmsg, "new_data", c.Nom)
 			if new_data != "" {
@@ -284,6 +303,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 				c.Tab[sender] = EtatReqSite{
 					TypeRequete: Accuse,
 					Horloge:     rcvHLG,
+				        VectorClock: rcvVC,
 				}
 			}
 			utils.Display_f("Accusé", "Accusé reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
@@ -349,10 +369,12 @@ func TabToString(tab map[string]EtatReqSite) string {
 	var result string = "TAB_REQ"
 
 	for k, v := range tab {
-		result += fmt.Sprintf("%s : Horloge=%d, Type=%s,", k, v.Horloge, v.TypeRequete)
+		result += fmt.Sprintf("%s : Horloge=%d (%s), Type=%s,", k, v.Horloge, strings.ReplaceAll(utils.EncodeVC(v.VectorClock),","," "), v.TypeRequete)
 	}
 	return result
 }
+
+
 
 func (c *Controller) IsFromApp(rcvmsg string) bool {
 	sndmsg := utils.Findval(rcvmsg, "msg", c.Nom)
@@ -446,24 +468,6 @@ func (s *Snapshot) UpdateEtatLocal(c *Controller) {
 }
 
 // début
-/*func (c *Controller) DebutSnapshot() {
-    // Le site devient rouge
-    c.Snapshot.Couleur = Rouge
-
-    // Initialiser l'état global avec l'état local
-    c.Snapshot.UpdateEtatLocal(c)
-    c.Snapshot.EtatGlobal = c.Snapshot.EtatLocal
-
-    // Ce site est l'initiateur
-    c.Snapshot.Initiateur = true
-
-    // Nombre d'états attendus = N-1
-    c.Snapshot.NbEtatAttendu = N - 1
-
-    //Le site initiateur donne son bilan
-    c.Snapshot.NbMessagePrepostAttendu = c.Snapshot.Bilan
-
-}*/
 func (c *Controller) DebutSnapshot() {
 	c.Snapshot.Couleur = Rouge
 	c.Snapshot.Initiateur = true
@@ -476,7 +480,7 @@ func (c *Controller) DebutSnapshot() {
 	msg := utils.Msg_format("type", "snapshot") +
 		utils.Msg_format("sender", c.Nom) +
 		utils.Msg_format("msg", "1") + //IMPORTANT POUR DIRE QUE CA VIENT DE APP
-		utils.Msg_format("hlg", strconv.Itoa(c.Horloge)) +
+                c.Msg_Horloge()+
 		utils.Msg_format("couleur", string(c.Snapshot.Couleur)) //ROUGE donc
 	//utils.Msg_format("destinator", target)
 	//fmt.Println(msg)
@@ -576,11 +580,14 @@ func (c *Controller) ForwardToApp(message string) {
 	c.EnvoyerSurAnneau(AppMsg, ctrlMsg)
 }
 func (c *Controller) handleSnapshotMessage(msg string) {
+	rcvVC := utils.DecodeVC(utils.Findval(msg, "vc", c.Nom))
+        c.VectorClock = utils.MaxVC(c.VectorClock, rcvVC, c.NomCourt)
 	//sender := utils.Findval(msg, "sender", c.Nom)
 
 	if c.Snapshot.Couleur == Blanc { //on ne le traite que si on ne la pas déjà traité
 		// Devenir rouge
-		c.Snapshot.Couleur = Rouge
+
+		//c.Snapshot.Couleur = Rouge
 		// Sauvegarde état local
 		c.Snapshot.UpdateEtatLocal(c)
 		c.Snapshot.EtatGlobal[c.Nom] = c.Snapshot.EtatLocal
@@ -616,14 +623,13 @@ func CopyDoctorsCount() map[string]int {
 	return copyDoctors
 }
 
-func Encodehorloge(vc map[string]int) string {
-
-	var result string
-	for k, v := range vc {
-		result += fmt.Sprintf("%s=%d|", k, v)
-	}
-	return strings.TrimSuffix(result, "|")
-}
+//func Encodehorloge(vc map[string]int) string {
+//	var result string
+//	for k, v := range vc {
+//		result += fmt.Sprintf("%s=%d|", k, v)
+//	}
+//	return strings.TrimSuffix(result, "|")
+//}
 
 // Vérification de la fin du snapshot
 func (c *Controller) VerifierFinSnapshot() {
@@ -638,6 +644,7 @@ func (c *Controller) VerifierFinSnapshot() {
 		fmt.Println("endSnapshot", etatStr)
 
 		c.Snapshot = *NewSnapshot()
+		c.SnapshotEnCours = false
 	}
 }
 
@@ -666,7 +673,7 @@ func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) 
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("etat", etatStr) +
 				utils.Msg_format("bilan", strconv.Itoa(etatMsg.Bilan)) +
-				utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
+                                c.Msg_Horloge()
 		}
 	case PrePost:
 		utils.Display_e("PrePost", fmt.Sprintf("!!!PrePost"), c.Nom)
@@ -677,7 +684,7 @@ func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) 
 				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", prepostMsg) +
-				utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
+                                c.Msg_Horloge()
 		}
 	case AppMsg:
 		utils.Display_e("AppMsg", fmt.Sprintf("!!!AppMsg"), c.Nom)
@@ -687,7 +694,7 @@ func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) 
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", appMsg.Contenu) +
 				utils.Msg_format("couleur", string(appMsg.Couleur)) +
-				utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
+                                c.Msg_Horloge()
 		}
 	case SnapshotMsg:
 		utils.Display_e("SnapshotMsg", fmt.Sprintf("!!!SnapshotMsg"), c.Nom)
@@ -698,6 +705,7 @@ func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) 
 		}
 	}
 	if msg != "" {
+                utils.Display_f("SEND", fmt.Sprintf("%s - %s",msgType, msg), c.Nom)
 		fmt.Println(msg)
 	}
 }
@@ -706,6 +714,6 @@ func main() {
 	flag.Parse()
 
 	nom := *p_nom + "-" + strconv.Itoa(os.Getpid())
-	ctrl := NewController(nom)
+	ctrl := NewController(*p_nom, nom)
 	ctrl.HandleMessage()
 }

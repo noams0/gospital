@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+        "sort"
 )
 
 /*
@@ -82,8 +83,14 @@ func CloneVC(vc map[string]int) map[string]int {
 
 func EncodeVC(vc map[string]int) string {
 	var parts []string
-	for k, v := range vc {
-		parts = append(parts, k+"-"+strconv.Itoa(v))
+        keys := make([]string, 0, len(vc))
+        for k := range vc  {
+	   keys = append(keys, k)
+        }
+        sort.Strings(keys)
+
+	for _, k := range keys {
+		parts = append(parts, k+"-"+strconv.Itoa(vc[k]))
 	}
 	return strings.Join(parts, ",")
 }
@@ -105,6 +112,34 @@ func DecodeVC(s string) map[string]int {
 	}
 	return vc
 }
+
+func InitVC(n int) map[string]int {
+	vc := make(map[string]int)
+        for i := 0; i<n; i++ {
+            vc["ctrl_"+strconv.Itoa(i+1)] = 0;
+        }     
+        return vc;
+}
+ 
+func IncVC(vc map[string]int, name string) map[string]int {
+     vc[name]++;
+     return vc;
+}
+
+func MaxVC(vc1, vc2 map[string]int, name string) map[string]int {
+	vc := make(map[string]int)
+	for k, v := range vc1 {
+         if v>vc2[k] {
+            vc[k] = v
+         } else {
+            vc[k] = vc2[k]
+         }
+        }
+        vc[name]++;
+        return vc        
+}
+
+
 
 /*
  FONCTIONS ANNEXES
