@@ -117,6 +117,7 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 			utils.Msg_format("type", string(Requete)) +
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", "1") +
+				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
 				utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	case "finSC":
 		c.Horloge++
@@ -133,6 +134,7 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", "finSC") +
 				utils.Msg_format("hlg", strconv.Itoa(c.Horloge)) +
+				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
 				utils.Msg_format("new_data", newData),
 		)
 	case "send":
@@ -140,7 +142,13 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 		var destApp string = utils.Findval(rcvmsg, "destinator", c.Nom)
 		var destCtrl string = utils.App_to_ctrl(destApp)
 		utils.Display_f("destinator :", destCtrl, c.Nom)
-		fmt.Println(utils.Msg_format("type", "send") + utils.Msg_format("destinator", destCtrl) + utils.Msg_format("sender", c.Nom) + utils.Msg_format("msg", "send") + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
+		fmt.Println(
+			utils.Msg_format("type", "send") +
+				utils.Msg_format("destinator", destCtrl) +
+				utils.Msg_format("sender", c.Nom) +
+				utils.Msg_format("msg", "send") +
+				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
+				utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	case "yourState":
 		etat_local := utils.Findval(rcvmsg, "etat_loacl", c.Nom)
 		etat_local_full := map[string]string{c.Nom: etat_local}
@@ -173,7 +181,6 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 		}
 
 	default:
-		//fmt.Println(utils.Msg_format("sender", c.Nom) + utils.Msg_format("msg", rcvmsg) + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 	case "debutSC":
 	case "receive":
 		utils.Display_f("NOT", "for me", c.Nom)
@@ -221,7 +228,13 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			utils.Display_f(string(Requete), fmt.Sprintf("mon tab %#v", c.Tab), c.Nom)
 			fmt.Println(rcvmsg)
 
-			fmt.Println(utils.Msg_format("destinator", sender) + utils.Msg_format("msg", "ack") + utils.Msg_format("type", "ack") + utils.Msg_format("sender", c.Nom) + utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
+			fmt.Println(
+				utils.Msg_format("destinator", sender) +
+					utils.Msg_format("msg", "ack") +
+					utils.Msg_format("type", "ack") +
+					utils.Msg_format("sender", c.Nom) +
+					utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
+					utils.Msg_format("hlg", strconv.Itoa(c.Horloge)))
 			if c.Tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
 				if isFirstRequest(c.Tab, c.Nom, c.Tab[c.Nom].Horloge) {
 					c.IsInSection = true
@@ -464,7 +477,7 @@ func (c *Controller) DebutSnapshot() {
 		utils.Msg_format("sender", c.Nom) +
 		utils.Msg_format("msg", "1") + //IMPORTANT POUR DIRE QUE CA VIENT DE APP
 		utils.Msg_format("hlg", strconv.Itoa(c.Horloge)) +
-		utils.Msg_format("couleur", string(Rouge))
+		utils.Msg_format("couleur", string(c.Snapshot.Couleur)) //ROUGE donc
 	//utils.Msg_format("destinator", target)
 	//fmt.Println(msg)
 
@@ -648,6 +661,7 @@ func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) 
 			}
 			etatStr := string(etatBytes)
 			msg = utils.Msg_format("type", string(EtatMsg)) +
+				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
 				utils.Msg_format("msg", "1") +
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("etat", etatStr) +
@@ -658,7 +672,9 @@ func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) 
 		utils.Display_e("PrePost", fmt.Sprintf("!!!PrePost"), c.Nom)
 
 		if prepostMsg, ok := content.(string); ok {
+
 			msg = utils.Msg_format("type", string(PrePost)) +
+				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", prepostMsg) +
 				utils.Msg_format("hlg", strconv.Itoa(c.Horloge))

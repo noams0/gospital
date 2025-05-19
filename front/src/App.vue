@@ -44,30 +44,22 @@ const doctorCountsSender = ref("")
 const activityLog = ref("")
 const snapshot = ref("")
 
-const snapshotParsed = computed(() => {
-  if (!snapshot.value || typeof snapshot.value !== 'string') return {}
-
-  const match = snapshot.value.match(/^endSnapshot\s+(.*)$/)
-  if (!match) return {}
-
+const parsedSnapshot = computed(() => {
   try {
-    const rawJson = match[1]
-        .replace(/\\"/g, '"') // Corriger les guillemets échappés
-    const parsed = JSON.parse(rawJson)
-  console.log(parsed)
-    // Si certains sous-éléments sont encore des chaînes JSON, on les parse aussi
-    Object.keys(parsed).forEach(key => {
-      if (typeof parsed[key] === "string") {
-        try {
-          parsed[key] = JSON.parse(parsed[key])
-        } catch (e) {
-          // ignore
-        }
+    const outer = JSON.parse(snapshot.value || '{}')
+    const result = {}
+
+    for (const [site, innerStr] of Object.entries(outer)) {
+      try {
+        const inner = JSON.parse(innerStr)
+        result[site] = inner[site] || inner
+      } catch (e) {
+        result[site] = `Erreur de parsing: ${innerStr}`
       }
-    })
-    return parsed
-  } catch (e) {
-    console.error("Erreur parsing snapshot :", e)
+    }
+
+    return result
+  } catch (err) {
     return {}
   }
 })
@@ -158,9 +150,19 @@ onUnmounted(() => {
       />
     </ul>
   </div>
-  <div class="snapshot-display" v-if="snapshot.value !== ''">
+  <div class="snapshot-display">
     <h3>📸 État global sauvegardé</h3>
-    {{ snapshot}}
+    <div class="hospital" v-for="(val, site) in parsedSnapshot" :key="site">
+      <h2>{{ site }}</h2>
+      <div class="doctors">
+        <span v-for="n in val" :key="n">🧑‍⚕️</span>
+      </div>
+      <p>{{ val }} médecin(s)</p>
+    </div>
+
+
+  </div>
+
 <!--    <div class="snapshot-site" v-for="(etat, site) in snapshotParsed" :key="site">-->
 <!--      <h4>{{ site }}</h4>-->
 <!--      <ul>-->
@@ -175,7 +177,6 @@ onUnmounted(() => {
 <!--        </li>-->
 <!--      </ul>-->
 <!--    </div>-->
-  </div>
 
 
 </template>
@@ -268,6 +269,7 @@ button {
 
 
 .snapshot-display {
+  display: flex;
   color: black;
   margin-top: 2rem;
   padding: 1rem;

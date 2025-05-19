@@ -39,7 +39,7 @@ func Msg_format(key string, val string) string {
 
 func Findval(msg string, key string, nom string) string {
 	if len(msg) < 4 {
-		Display_w("findval", "message trop court : "+msg, nom)
+		//Display_w("findval", "message trop court : "+msg, nom)
 		return ""
 	}
 	sep := msg[0:1]
@@ -47,7 +47,7 @@ func Findval(msg string, key string, nom string) string {
 
 	for _, keyval := range tab_allkeyvals {
 		if len(keyval) < 3 { // au moins 1 pour separateur, 1 pour key, 1 pour val
-			Display_w("findval", "message trop court : "+msg, nom)
+			//Display_w("findval", "message trop court : "+msg, nom)
 			continue
 		}
 		equ := keyval[0:1]
