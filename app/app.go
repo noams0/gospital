@@ -73,7 +73,7 @@ func (a *App) receive() {
 			yrstate := a.doctorInfo.DoctorsCount[*p_nom]
 			str_yrstate := strconv.Itoa(yrstate)
 			stderr.Println(str_yrstate)
-			msg = utils.Msg_format("type", "yourState") + utils.Msg_format("etat_loacl", str_yrstate)
+			msg = utils.Msg_format("type", "yourState") + utils.Msg_format("etat_local", str_yrstate)
 			fmt.Println(msg)
 
 		} else if strings.HasPrefix(msg, "endSnapshot") {
