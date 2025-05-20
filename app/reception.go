@@ -11,6 +11,11 @@ import(
 )
 
 func (a *App) waitingFoReceivng() {
+
+	/*Gère la réception d’une demande de section critique (SC), attend l’accès, 
+	incrémente le compteur du médecin courant, met à jour les données et le journal d’activité, 
+	puis notifie la fin de la SC.*/
+
 	a.doctorInfo.ActivityLog = append([]string{"Receive"}, a.doctorInfo.ActivityLog...)
 
 	fmt.Print(utils.Msg_format("type", "demandeSC") + "\n")
@@ -34,6 +39,11 @@ func (a *App) waitingFoReceivng() {
 
 
 func (a *App) receive() {
+
+	/*Lit les messages depuis l’entrée standard, 
+	traite différents types de commandes (réception, état, snapshot, requêtes, début de SC, mise à jour des compteurs),
+	met à jour l’état de l’application et le journal d’activité selon le message reçu.*/
+	
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		msg := scanner.Text()

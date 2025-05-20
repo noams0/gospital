@@ -6,7 +6,7 @@ type DoctorInfo struct {
 	Snapshot     string
 }
 
-// Struct App
+// 
 type App struct {
 	name       string
 	doctorInfo DoctorInfo

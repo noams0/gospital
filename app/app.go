@@ -47,6 +47,8 @@ func NewApp(name string) *App {
 }
 
 func (a *App) run() {
+	/*Lance WebSocket, démarre la réception des actions,
+	 puis traite les actions reçues*/
 	var wsURL string
 	switch a.name {
 	case "app_1":
@@ -80,6 +82,8 @@ func (a *App) run() {
 
 
 func main() {
+	/* Analyse les arguments de la ligne de commande, 
+	crée l’application et lance son exécution.*/
 	flag.Parse()
 	app := NewApp(*p_nom)
 	app.run()
