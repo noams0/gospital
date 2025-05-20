@@ -50,6 +50,12 @@ const parsedSnapshot = computed(() => {
     const result = {}
 
     for (const [site, innerStr] of Object.entries(outer)) {
+      // Cas spécial pour PREPOST
+      if (site === "PREPOST") {
+        result[site] = innerStr
+        continue
+      }
+
       try {
         const inner = JSON.parse(innerStr)
         result[site] = inner[site] || inner
@@ -63,6 +69,7 @@ const parsedSnapshot = computed(() => {
     return {}
   }
 })
+
 
 const doctorCountsSenderNb = computed(() =>
 doctorCounts.value[doctorCountsSender.value]
@@ -167,13 +174,17 @@ onUnmounted(() => {
     <h3>📸 État global sauvegardé</h3>
     <div class="hospital" v-for="(val, site) in parsedSnapshot" :key="site">
       <h2>{{ site }}</h2>
-      <div class="doctors">
+      <div class="doctors" v-if="site !== 'PREPOST'">
         <span v-for="n in val" :key="n">🧑‍⚕️</span>
       </div>
-      <p>{{ val }} médecin(s)</p>
-    </div>
+      <p >{{ val }} médecin(s</p>
+      <div class="doctors" v-else">
+      <span v-for="n in val" :key="n">🧑‍⚕️</span>
 
+    </div>
   </div>
+
+</div>
   <div class="activity-log">
     <h3>Journal des activités</h3>
     <ul>

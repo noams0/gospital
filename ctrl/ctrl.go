@@ -335,9 +335,21 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 		}
 
 	case "send":
+		//On check que l'on n'est pas sur un message prepost
+		couleur := utils.Findval(rcvmsg, "couleur", c.Nom)
+		if couleur == string(Blanc) && c.Snapshot.Couleur == Rouge {
+			stderr.Println("PREPOST")
+			msg := fmt.Sprintf("from %s to %s", sender, utils.Findval(rcvmsg, "destinator", c.Nom))
+			prepost, ok := c.Snapshot.EtatGlobal["PREPOST"].([]string)
+			if !ok {
+				// Soit la clé n'existe pas, soit ce n'est pas un []string — on initialise
+				prepost = []string{}
+			}
+			prepost = append([]string{msg}, prepost...)
+			c.Snapshot.EtatGlobal["PREPOST"] = prepost
+		}
 		if utils.Findval(rcvmsg, "destinator", c.Nom) == *p_nom {
 			utils.Display_f("send", "send pour oim"+rcvmsg, c.Nom)
-
 			fmt.Println("receive")
 		} else {
 			utils.Display_f("send", "send pas pour oim"+rcvmsg, c.Nom)
@@ -346,10 +358,10 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 	case "snapshot":
 		stderr.Println("je recois un snapshot")
 		//c.handleSnapshotMessage(rcvmsg)
-		  if !c.SnapshotEnCours {
-                   c.SnapshotEnCours = true
-                        c.DebutSnapshot()
-                }
+		if !c.SnapshotEnCours {
+			c.SnapshotEnCours = true
+			c.DebutSnapshot()
+		}
 
 	case string(EtatMsg):
 		//stderr.Println("je recois un etat")
@@ -662,7 +674,7 @@ func (c *Controller) VerifierFinSnapshot() {
 		etatStr := string(etatBytes)
 
 		fmt.Println("endSnapshot", etatStr)
-        utils.SaveSnapshot(c.NomCourt, etatStr, utils.EncodeVC(c.VectorClock))
+		utils.SaveSnapshot(c.NomCourt, etatStr, utils.EncodeVC(c.VectorClock))
 
 		c.Snapshot = *NewSnapshot()
 		c.SnapshotEnCours = false

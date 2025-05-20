@@ -160,7 +160,8 @@ func (a *App) waitingFoSending(destinator string) {
 	fmt.Print(msg + "\n")
 	a.doctorInfo.ActivityLog = append([]string{"FinSC"}, a.doctorInfo.ActivityLog...)
 	//LIBERATION SC PUIS SEND => SINON BUG
-
+	//test pour voir prepost cas n°2
+	//time.Sleep(1 * time.Second)
 	msg = utils.Msg_format("type", "send") + utils.Msg_format("destinator", destinator)
 	utils.Display_w("action :", msg, a.name)
 	fmt.Print(msg + "\n")
