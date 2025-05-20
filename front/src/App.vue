@@ -113,6 +113,17 @@ function demanderSnapshot() {
   socket.send(JSON.stringify(message))
 }
 
+const speed = ref(50)
+
+function changerVitesse() {
+  if (socket.readyState === WebSocket.OPEN) {
+    const message = JSON.stringify({
+      type: 'speed',
+      delay: speed.value
+    })
+    socket.send(message)
+  }
+}
 
 onUnmounted(() => {
   if (socket) socket.close()
@@ -120,6 +131,20 @@ onUnmounted(() => {
 </script>
 
 <template>
+
+  <div class="speed-control">
+    <label for="speedRange">⏱️ Vitesse de simulation : {{ speed }} ms</label>
+    <input
+        id="speedRange"
+        type="range"
+        min="10"
+        max="5000"
+        step="10"
+        v-model="speed"
+    />
+    <button @click="changerVitesse">✅ Appliquer la vitesse</button>
+  </div>
+
   <button @click="demanderSnapshot" style="margin-bottom: 20px">
     🔄 Déclencher une sauvegarde instantanée
   </button>
@@ -138,7 +163,17 @@ onUnmounted(() => {
       </button>
     </div>
   </div>
+  <div class="snapshot-display">
+    <h3>📸 État global sauvegardé</h3>
+    <div class="hospital" v-for="(val, site) in parsedSnapshot" :key="site">
+      <h2>{{ site }}</h2>
+      <div class="doctors">
+        <span v-for="n in val" :key="n">🧑‍⚕️</span>
+      </div>
+      <p>{{ val }} médecin(s)</p>
+    </div>
 
+  </div>
   <div class="activity-log">
     <h3>Journal des activités</h3>
     <ul>
@@ -150,20 +185,10 @@ onUnmounted(() => {
       />
     </ul>
   </div>
-  <div class="snapshot-display">
-    <h3>📸 État global sauvegardé</h3>
-    <div class="hospital" v-for="(val, site) in parsedSnapshot" :key="site">
-      <h2>{{ site }}</h2>
-      <div class="doctors">
-        <span v-for="n in val" :key="n">🧑‍⚕️</span>
-      </div>
-      <p>{{ val }} médecin(s)</p>
-    </div>
 
 
-  </div>
 
-<!--    <div class="snapshot-site" v-for="(etat, site) in snapshotParsed" :key="site">-->
+  <!--    <div class="snapshot-site" v-for="(etat, site) in snapshotParsed" :key="site">-->
 <!--      <h4>{{ site }}</h4>-->
 <!--      <ul>-->
 <!--        <li><strong>Horloge :</strong> {{ etat.Horloge }}</li>-->
@@ -290,6 +315,11 @@ button {
   color: #00796b;
 }
 
-
+.speed-control {
+  margin: 1em 0;
+}
+input[type="range"] {
+  width: 100%;
+}
 
 </style>

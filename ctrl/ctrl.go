@@ -24,7 +24,6 @@ var N = 3
 var pid = os.Getpid()
 var stderr = log.New(os.Stderr, "", 0)
 
-
 type MessageType string
 
 const (
@@ -43,14 +42,6 @@ type EtatReqSite struct {
 	Horloge     int
 	VectorClock map[string]int
 	TypeRequete MessageType
-}
-
-var tab = make(map[string]EtatReqSite)
-
-var doctors = map[string]int{
-	"doc_1": 5,
-	"doc_2": 3,
-	"doc_3": 7,
 }
 
 type Couleur string
@@ -80,6 +71,7 @@ type Controller struct {
 	IsInSection     bool
 	Snapshot        Snapshot
 	SnapshotEnCours bool
+	Speed           time.Duration
 }
 type EtatMessage struct {
 	EtatLocal map[string]interface{}
@@ -100,16 +92,17 @@ func NewController(nomcourt, nom string) *Controller {
 		Tab:         make(map[string]EtatReqSite),
 		IsInSection: false,
 		Snapshot:    *NewSnapshot(),
+		Speed:       50,
 	}
 }
 
 var p_nom *string = flag.String("n", "ecrivain", "nom")
 
 func (c *Controller) Msg_Horloge() string {
-   msg := utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
-   c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
-   msg += utils.Msg_format("vc", utils.EncodeVC(c.VectorClock))
-   return msg
+	msg := utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
+	c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
+	msg += utils.Msg_format("vc", utils.EncodeVC(c.VectorClock))
+	return msg
 }
 
 func (c *Controller) handleAppMessage(rcvmsg string) {
@@ -117,9 +110,15 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 	utils.Display_d("main", "TYPE de la demande en provenance de l'app : "+type_msg, c.Nom)
 
 	switch type_msg {
+	case "speed":
+		delay := utils.Findval(rcvmsg, "delay", c.Nom)
+		delayInt, _ := strconv.Atoi(delay)
+		stderr.Println(delayInt)
+		c.Speed = time.Duration(delayInt)
+		stderr.Println(c.Speed)
 	case "demandeSC":
 		c.Horloge++
-                c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
+		c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
 		c.Tab[c.Nom] = EtatReqSite{
 			TypeRequete: Requete,
 			Horloge:     c.Horloge,
@@ -131,10 +130,10 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", "1") +
 				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
-                                c.Msg_Horloge())
+				c.Msg_Horloge())
 	case "finSC":
 		c.Horloge++
-                c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
+		c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
 		c.Tab[c.Nom] = EtatReqSite{
 			TypeRequete: Liberation,
 			Horloge:     c.Horloge,
@@ -148,13 +147,13 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 			utils.Msg_format("type", "liberation") +
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", "finSC") +
-                                c.Msg_Horloge()+
+				c.Msg_Horloge() +
 				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
 				utils.Msg_format("new_data", newData),
 		)
 	case "send":
 		c.Horloge++
-                c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
+		c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
 		var destApp string = utils.Findval(rcvmsg, "destinator", c.Nom)
 		var destCtrl string = utils.App_to_ctrl(destApp)
 		utils.Display_f("destinator :", destCtrl, c.Nom)
@@ -164,7 +163,7 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", "send") +
 				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
-                                c.Msg_Horloge())
+				c.Msg_Horloge())
 	case "yourState":
 		etat_local := utils.Findval(rcvmsg, "etat_local", c.Nom)
 		etat_local_full := map[string]string{c.Nom: etat_local}
@@ -206,33 +205,32 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 
 func (c *Controller) handleCtrlMessage(rcvmsg string) {
 	rcvVC := utils.DecodeVC(utils.Findval(rcvmsg, "vc", c.Nom))
-        c.VectorClock = utils.MaxVC(c.VectorClock, rcvVC, c.NomCourt)
+	c.VectorClock = utils.MaxVC(c.VectorClock, rcvVC, c.NomCourt)
 	rcvHLG, _ := strconv.Atoi(utils.Findval(rcvmsg, "hlg", c.Nom))
 	sndmsg := utils.Findval(rcvmsg, "msg", c.Nom)
 
 	sender := utils.Findval(rcvmsg, "sender", c.Nom)
-        //if sender == c.Nom {
-        //  return
-        //}
+	//if sender == c.Nom {
+	//  return
+	//}
 
-
-        /*
-	if len(rcvVC) != 0 {
-		utils.Display_d("main", fmt.Sprintf("horloge reçue : %#v", rcvVC), c.Nom)
-		for k, v := range rcvVC {
-			if _, ok := c.VectorClock[k]; !ok {
-				c.VectorClock[k] = 0
+	/*
+		if len(rcvVC) != 0 {
+			utils.Display_d("main", fmt.Sprintf("horloge reçue : %#v", rcvVC), c.Nom)
+			for k, v := range rcvVC {
+				if _, ok := c.VectorClock[k]; !ok {
+					c.VectorClock[k] = 0
+				}
+				if v > c.VectorClock[k] {
+					c.VectorClock[k] = v
+				}
 			}
-			if v > c.VectorClock[k] {
-				c.VectorClock[k] = v
-			}
+			c.VectorClock[*p_nom]++
+			//utils.Display_e("main", "Nouvelle horloge :"+utils.Encodehorloge(c.VectorClock))
+		} else {
+			c.VectorClock[*p_nom]++
 		}
-		c.VectorClock[*p_nom]++
-		//utils.Display_e("main", "Nouvelle horloge :"+utils.Encodehorloge(c.VectorClock))
-	} else {
-		c.VectorClock[*p_nom]++
-	}
-        */
+	*/
 	c.Horloge = max(rcvHLG, c.Horloge) + 1
 
 	msg_type := utils.Findval(rcvmsg, "type", c.Nom)
@@ -260,7 +258,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 					utils.Msg_format("type", "ack") +
 					utils.Msg_format("sender", c.Nom) +
 					utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
-                                        c.Msg_Horloge())
+					c.Msg_Horloge())
 			if c.Tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
 				if isFirstRequest(c.Tab, c.Nom, c.Tab[c.Nom].Horloge) {
 					c.IsInSection = true
@@ -311,7 +309,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 				c.Tab[sender] = EtatReqSite{
 					TypeRequete: Accuse,
 					Horloge:     rcvHLG,
-				        VectorClock: rcvVC,
+					VectorClock: rcvVC,
 				}
 			}
 			utils.Display_f("Accusé", "Accusé reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
@@ -377,8 +375,8 @@ func TabToString(tab map[string]EtatReqSite) string {
 	var result string = "TAB_REQ"
 
 	for k, v := range tab {
-		result += fmt.Sprintf("%s : Horloge=%d (%s), Type=%s,", k, v.Horloge, strings.ReplaceAll(utils.EncodeVC(v.VectorClock),","," "), v.TypeRequete)
-                utils.Display_f("TEST", utils.EncodeVC(v.VectorClock), "XXX")
+		result += fmt.Sprintf("%s : Horloge=%d (%s), Type=%s,", k, v.Horloge, strings.ReplaceAll(utils.EncodeVC(v.VectorClock), ",", " "), v.TypeRequete)
+		utils.Display_f("TEST", utils.EncodeVC(v.VectorClock), "XXX")
 	}
 	return result
 }
@@ -396,7 +394,7 @@ func (c *Controller) HandleMessage() {
 	for {
 		fmt.Scanln(&rcvmsg)
 
-		time.Sleep(50 * time.Millisecond) //temps d'attente du backend
+		time.Sleep(c.Speed * time.Millisecond) //temps d'attente du backend
 		utils.Display_d("main", "received : "+rcvmsg, c.Nom)
 
 		/*MESSAGE DE L'APP*/
@@ -412,12 +410,9 @@ func (c *Controller) HandleMessage() {
 func isFirstRequest(tab map[string]EtatReqSite, me string, h int) bool {
 	for k, info := range tab {
 		if k == me {
-			//utils.Display_f("TENTATIVE", "c'est moi, je passe")
 			continue
 		}
-
 		if info.Horloge < h {
-			//utils.Display_f("TENTATIVE RATEE", fmt.Sprintf("ca passe pas pour %d >= %d", info.Horloge, h))
 			return false
 		} else if info.Horloge == h { //si c'est égalité alors on teste le nom du controleur, le plus petit l'emporte
 			if !IsCtrlNumberLess(me, k) {
@@ -425,8 +420,6 @@ func isFirstRequest(tab map[string]EtatReqSite, me string, h int) bool {
 			}
 
 		}
-		//utils.Display_f("TENTATIVE", fmt.Sprintf("ca passe pour %d >= %d", info.Horloge, h))
-
 	}
 	return true
 }
@@ -487,7 +480,7 @@ func (c *Controller) DebutSnapshot() {
 	msg := utils.Msg_format("type", "snapshot") +
 		utils.Msg_format("sender", c.Nom) +
 		utils.Msg_format("msg", "1") + //IMPORTANT POUR DIRE QUE CA VIENT DE APP
-                c.Msg_Horloge()+
+		c.Msg_Horloge() +
 		utils.Msg_format("couleur", string(c.Snapshot.Couleur)) //ROUGE donc
 	//utils.Msg_format("destinator", target)
 	//fmt.Println(msg)
@@ -519,11 +512,11 @@ func (c *Controller) ReceptionMsgEtat(rcvmsg string) {
 		//	c.EnvoyerSurAnneau(EtatMsg, etatMsg)
 		//}
 
-      }
-      if sender == c.Nom {
-         return
-      }
-      c.EnvoyerSurAnneau("FORWARD", rcvmsg)
+	}
+	if sender == c.Nom {
+		return
+	}
+	c.EnvoyerSurAnneau("FORWARD", rcvmsg)
 }
 
 // reception msg prépost
@@ -554,10 +547,9 @@ func (c *Controller) ReceptionMsgPrepost(message string) {
 func (c *Controller) ReceptionMsgAppDeCtrl(message string, couleurRecue Couleur) {
 	c.Snapshot.Bilan--
 	sender := utils.Findval(message, "sender", c.Nom)
-        if sender == c.Nom {
-          return
-        }
-
+	if sender == c.Nom {
+		return
+	}
 
 	if couleurRecue == Rouge && c.Snapshot.Couleur == Blanc {
 		c.Snapshot.Couleur = Rouge
@@ -597,11 +589,11 @@ func (c *Controller) ForwardToApp(message string) {
 }
 func (c *Controller) handleSnapshotMessage(msg string) {
 	rcvVC := utils.DecodeVC(utils.Findval(msg, "vc", c.Nom))
-        c.VectorClock = utils.MaxVC(c.VectorClock, rcvVC, c.NomCourt)
+	c.VectorClock = utils.MaxVC(c.VectorClock, rcvVC, c.NomCourt)
 	sender := utils.Findval(msg, "sender", c.Nom)
-        if sender == c.Nom {
-          return
-        }
+	if sender == c.Nom {
+		return
+	}
 
 	if c.Snapshot.Couleur == Blanc { //on ne le traite que si on ne la pas déjà traité
 		// Devenir rouge
@@ -657,7 +649,7 @@ func CopyDoctorsCount() map[string]int {
 func (c *Controller) VerifierFinSnapshot() {
 	utils.Display_e("VerifierFinSnapshot", fmt.Sprintf("!!!VerifierFinSnapshot"), c.Nom)
 
-        utils.Display_e("NB???",fmt.Sprintf("%d et %d", c.Snapshot.NbEtatAttendu, c.Snapshot.NbMessagePrepostAttendu), "ccc")
+	utils.Display_e("NB???", fmt.Sprintf("%d et %d", c.Snapshot.NbEtatAttendu, c.Snapshot.NbMessagePrepostAttendu), "ccc")
 	if c.Snapshot.NbEtatAttendu <= 0 && c.Snapshot.NbMessagePrepostAttendu <= 0 {
 		utils.Display_e("SNAPSHOT", "Snapshot terminé!", c.Nom)
 		utils.Display_e("SNAPSHOT", fmt.Sprintf("État global final: %#v", c.Snapshot.EtatGlobal), c.Nom)
@@ -696,7 +688,7 @@ func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) 
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("etat", etatStr) +
 				utils.Msg_format("bilan", strconv.Itoa(etatMsg.Bilan)) +
-                                c.Msg_Horloge()
+				c.Msg_Horloge()
 		}
 	case PrePost:
 		utils.Display_e("PrePost", fmt.Sprintf("!!!PrePost"), c.Nom)
@@ -707,7 +699,7 @@ func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) 
 				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", prepostMsg) +
-                                c.Msg_Horloge()
+				c.Msg_Horloge()
 		}
 	case AppMsg:
 		utils.Display_e("AppMsg", fmt.Sprintf("!!!AppMsg"), c.Nom)
@@ -717,7 +709,7 @@ func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) 
 				utils.Msg_format("sender", c.Nom) +
 				utils.Msg_format("msg", appMsg.Contenu) +
 				utils.Msg_format("couleur", string(appMsg.Couleur)) +
-                                c.Msg_Horloge()
+				c.Msg_Horloge()
 		}
 	case SnapshotMsg:
 		utils.Display_e("SnapshotMsg", fmt.Sprintf("!!!SnapshotMsg"), c.Nom)
@@ -726,13 +718,13 @@ func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) 
 			//utils.Display_e("if", fmt.Sprintf("!!!if snapshot string"), c.Nom)
 			msg = msgStr
 		}
-        case "FORWARD":
-                if msgStr, ok := content.(string); ok {
-                  msg = msgStr
-                }
+	case "FORWARD":
+		if msgStr, ok := content.(string); ok {
+			msg = msgStr
+		}
 	}
 	if msg != "" {
-                utils.Display_f("SEND", fmt.Sprintf("%s - %s",msgType, msg), c.Nom)
+		utils.Display_f("SEND", fmt.Sprintf("%s - %s", msgType, msg), c.Nom)
 		fmt.Println(msg)
 	}
 }

@@ -184,12 +184,17 @@ func (a *App) run() {
 	go a.receive()
 
 	for action := range a.actions {
-		utils.Display_w("action", fmt.Sprintf("%v", action["to"]), a.name)
+		utils.Display_w("action", fmt.Sprintf("%v", action["type"]), a.name)
 		if action["type"] == "send" && a.doctorInfo.DoctorsCount[*p_nom] > 0 {
 			destinator := strings.TrimSpace(action["to"].(string))
 			go a.waitingFoSending(destinator)
 		} else if action["type"] == "snapshot" {
 			go a.snapshot()
+		} else if action["type"] == "speed" {
+			delayStr, ok := action["delay"].(string)
+			if ok {
+				fmt.Println(utils.Msg_format("type", "speed") + utils.Msg_format("delay", delayStr))
+			}
 		}
 	}
 }
