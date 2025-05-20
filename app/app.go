@@ -1,17 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"gospital/utils"
 	ws "gospital/websocket"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 var pid = os.Getpid()
@@ -26,21 +23,6 @@ func (d *DoctorInfo) SendDoctorInfo() utils.DoctorPayload {
 		ActivityLog:  d.ActivityLog,
 		Snapshot:     d.Snapshot,
 	}
-}
-
-type DoctorInfo struct {
-	DoctorsCount map[string]int
-	ActivityLog  []string
-	Snapshot     string
-}
-
-// Struct App
-type App struct {
-	name       string
-	doctorInfo DoctorInfo
-	actions    chan map[string]interface{}
-	waitingSC  bool
-	inSC       bool
 }
 
 func NewApp(name string) *App {
@@ -59,113 +41,6 @@ func NewApp(name string) *App {
 		actions:   make(chan map[string]interface{}, 10),
 		waitingSC: false,
 	}
-}
-
-func (a *App) receive() {
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		msg := scanner.Text()
-		globalMutex.Lock()
-		utils.Display_w("receive", "reception <"+msg+">", a.name)
-		if msg == "receive" {
-			go a.waitingFoReceivng()
-		} else if msg == "askForState" {
-			yrstate := a.doctorInfo.DoctorsCount[*p_nom]
-			str_yrstate := strconv.Itoa(yrstate)
-			stderr.Println(str_yrstate)
-			msg = utils.Msg_format("type", "yourState") + utils.Msg_format("etat_local", str_yrstate)
-			fmt.Println(msg)
-
-		} else if strings.HasPrefix(msg, "endSnapshot") {
-			snapshotData := strings.TrimPrefix(msg, "endSnapshot")
-			a.doctorInfo.Snapshot = snapshotData
-
-		} else if strings.HasPrefix(msg, "TAB_REQ") {
-			a.doctorInfo.ActivityLog = append([]string{msg}, a.doctorInfo.ActivityLog...)
-
-		} else if msg == "debutSC" && a.waitingSC {
-			a.inSC = true
-			a.waitingSC = false
-			a.doctorInfo.ActivityLog = append([]string{"DebSC"}, a.doctorInfo.ActivityLog...)
-		} else if utils.Findval(msg, "type", a.name) == "new_data" {
-			utils.Display_w("NEW_DATA", "IL FAUT MAJ", a.name)
-			data := utils.Findval(msg, "new_data", a.name)
-			pairs := strings.Split(data, "|")
-			for _, pair := range pairs {
-				parts := strings.Split(pair, "=")
-				if len(parts) == 2 {
-					appName := parts[0]
-					val, err := strconv.Atoi(parts[1])
-					if err == nil {
-						a.doctorInfo.DoctorsCount[appName] = val
-						utils.Display_w("NEW_DATA", fmt.Sprintf("Mise à jour : %s -> %d", appName, val), a.name)
-						//a.doctorInfo.ActivityLog = append([]string{"NewData"}, a.doctorInfo.ActivityLog...)
-
-					} else {
-						utils.Display_e("NEW_DATA", "Erreur de conversion pour "+pair, a.name)
-					}
-				}
-			}
-		}
-		globalMutex.Unlock()
-	}
-	if err := scanner.Err(); err != nil {
-		utils.Display_e("receive", "erreur de lecture: "+err.Error(), a.name)
-	}
-}
-
-func (a *App) waitingFoReceivng() {
-	a.doctorInfo.ActivityLog = append([]string{"Receive"}, a.doctorInfo.ActivityLog...)
-
-	fmt.Print(utils.Msg_format("type", "demandeSC") + "\n")
-
-	a.waitingSC = true
-	a.doctorInfo.ActivityLog = append([]string{"DemSC"}, a.doctorInfo.ActivityLog...)
-	for !a.inSC {
-		time.Sleep(100 * time.Millisecond)
-	}
-	a.doctorInfo.DoctorsCount[*p_nom]++
-	new_data := ""
-	for site, count := range a.doctorInfo.DoctorsCount {
-		new_data += fmt.Sprintf("|%s=%d", site, count)
-	}
-	msg := utils.Msg_format("type", "finSC") + utils.Msg_format("new_data", new_data)
-
-	fmt.Print(msg + "\n")
-	a.doctorInfo.ActivityLog = append([]string{"FinSC"}, a.doctorInfo.ActivityLog...)
-
-}
-
-func (a *App) waitingFoSending(destinator string) {
-	fmt.Print(utils.Msg_format("type", "demandeSC") + "\n")
-	a.waitingSC = true
-	a.doctorInfo.ActivityLog = append([]string{"DemSC"}, a.doctorInfo.ActivityLog...)
-	for !a.inSC {
-		time.Sleep(100 * time.Millisecond)
-	}
-	a.doctorInfo.DoctorsCount[*p_nom]--
-	if a.doctorInfo.DoctorsCount[*p_nom] < 0 {
-		a.doctorInfo.DoctorsCount[*p_nom] = 0
-	}
-	new_data := ""
-	for site, count := range a.doctorInfo.DoctorsCount {
-		new_data += fmt.Sprintf("|%s=%d", site, count)
-	}
-	//msg = "send" + destinator
-
-	a.doctorInfo.ActivityLog = append([]string{"Envoie"}, a.doctorInfo.ActivityLog...)
-
-	msg := utils.Msg_format("type", "finSC") + utils.Msg_format("new_data", new_data)
-
-	fmt.Print(msg + "\n")
-	a.doctorInfo.ActivityLog = append([]string{"FinSC"}, a.doctorInfo.ActivityLog...)
-	//LIBERATION SC PUIS SEND => SINON BUG
-	//test pour voir prepost cas n°2
-	//time.Sleep(1 * time.Second)
-	msg = utils.Msg_format("type", "send") + utils.Msg_format("destinator", destinator)
-	utils.Display_w("action :", msg, a.name)
-	fmt.Print(msg + "\n")
-	a.inSC = false
 }
 
 func (a *App) run() {
@@ -199,27 +74,7 @@ func (a *App) run() {
 		}
 	}
 }
-func (a *App) snapshot() {
-	utils.Display_e("app snapshot", fmt.Sprintf("!!!app snapshot"), a.name)
 
-	a.doctorInfo.ActivityLog = append([]string{"Snapshot"}, a.doctorInfo.ActivityLog...)
-
-	payload := a.doctorInfo.SendDoctorInfo()
-
-	var new_data strings.Builder
-	for site, count := range payload.DoctorsCount {
-		new_data.WriteString(fmt.Sprintf("|%s=%d", site, count))
-	}
-
-	utils.Display_w("snapshot", fmt.Sprintf("Envoi snapshot: %v", payload.DoctorsCount), a.name)
-
-	msg := utils.Msg_format("type", "snapshot") +
-		utils.Msg_format("sender", payload.Sender) +
-		utils.Msg_format("data", new_data.String())
-	utils.Msg_format("data", new_data.String())
-
-	fmt.Print(msg + "\n")
-}
 
 func main() {
 	flag.Parse()

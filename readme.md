@@ -1,5 +1,15 @@
 # Projet SR05 - programmation d'une application répartie
 
+Pour lancer l'app, ouvrir un terminal et faire
+```bash
+./run.sh
+```
+Pour accéder à l'interface graphique de chaque site, faire ctrl+clic sur les trois liens http:
+- http://localhost:5173/
+- http://localhost:5174/
+- http://localhost:5175/
+
+
 ## I) Scénario
 
 Post effondrement, une épidémie se propage et touche les hôpitaux d'une région. Les médecins s'affairent d'un hôpital à l'autre pour soigner les malades. Un hôpital peut envoyer un médecin à un autre hôpital.
@@ -26,13 +36,13 @@ mkfifo /tmp/in_A2 /tmp/out_A2 /tmp/in_C2 /tmp/out_C2
 mkfifo /tmp/in_A3 /tmp/out_A3 /tmp/in_C3 /tmp/out_C3
 
 #Lancement de chaque application et stockage des PIDs
-go run app/app.go -n "app_1"  < /tmp/in_A1 > /tmp/out_A1 & pids+=($!)
+go run app/*.go -n "app_1"  < /tmp/in_A1 > /tmp/out_A1 & pids+=($!)
 go run ctrl/ctrl.go -n "ctrl_1" < /tmp/in_C1 > /tmp/out_C1 & pids+=($!)
 
-go run app/app.go -n "app_2"  < /tmp/in_A2 > /tmp/out_A2 & pids+=($!)
+go run app/*.go -n "app_2"  < /tmp/in_A2 > /tmp/out_A2 & pids+=($!)
 go run ctrl/ctrl.go -n "ctrl_2" < /tmp/in_C2 > /tmp/out_C2 & pids+=($!)
 
-go run app/app.go -n "app_3"  < /tmp/in_A3 > /tmp/out_A3 & pids+=($!)
+go run app/*.go -n "app_3"  < /tmp/in_A3 > /tmp/out_A3 & pids+=($!)
 go run ctrl/ctrl.go -n "ctrl_3" < /tmp/in_C3 > /tmp/out_C3 & pids+=($!)
 
 #Connexions des flux avec les tubes (|), les tubes nommés et la commande tee
@@ -47,7 +57,7 @@ cat /tmp/out_C3 | tee /tmp/in_A3 > /tmp/in_C1 & pids+=($!)
 ```
 
 ### Interface graphique 
-On ajoute une interface graphique (client web) pour contrôler l'activité de cahque app (serveur). Notre application étant en temps réel, elle crée une websocket pour transférer de manière économe de petites quantités d'informations du serveur vers le client et **réciproquement**. Trois utilisateurs peuvent ainsi se connecter et participer à l'application via leur navigateur.
+On ajoute une interface graphique (client web) pour contrôler l'activité de chaque app (serveur). Notre application étant en temps réel, elle crée une websocket pour transférer de manière économe de petites quantités d'informations du serveur vers le client et **réciproquement**. Trois utilisateurs peuvent ainsi se connecter et participer à l'application via leur navigateur.
 
 ![Schéma de notre réseau](reseauSchéma.png)
 
@@ -80,14 +90,13 @@ Au cours lde l'algorithme, chaque site reçoit tous les messages REQ et LIB de t
 ### Déroulement de l'algorithme
 
 D'abord, le front déclenche l’envoie d’un message spontané de son back App_i <ins>(début)</ins>: 
-- App envoie un message `(SC)` au ctrl et attend
+- App envoie un message `(demSC)` au ctrl et attend
 - Ctrl envoie un message de type `(req, horloge locale, n° du site)` sur l'anneau
-- quand le ctrl a reçu un message de type `(ack, h, n°)` de chaque site, il informe son app qu'elle a la SC
-- App décrémente `medecin-=1` la donnée
-- envoie deux messages à son ctrl : `(médecin) à S_j` et `(finSC, réplicat)`
-
+- quand le ctrl a reçu un message de type `(ack, h, n°)` de chaque site, il informe son app qu'elle a la SC `(debSC)`
+- App décrémente `medecin-=1` la donnée puis envoie deux messages à son ctrl : `(réplicat)`, `(EnvoieMedecin) à S_j` et `(finSC)`
 - Ctrl transmet le `(réplicat)` et un message de type `(lib, h, n°)` et envoir le `(médecin) à S_j` sur l'anneau
 
+![Schéma de notre réseau](journalActivites.png)
 
 Si le site n'est pas le destinataire du message `(médecin)`, il le transmet sur le réseau.
 Sinon si le site est le destinataire du message, il le traite: 
@@ -100,7 +109,7 @@ Sinon si le site est le destinataire du message, il le traite:
 - Ctrl transmet le `(réplicat)` et un message de type `(lib, h, n°)` sur l'anneau
 - tous les autres sites mettent à jour leur (réplicat) et leur estampille.
 
-
+![Schéma de notre réseau](journalActivites_reception.png)
 
 
 ## IV) Sauvegarde répartie datée
