@@ -175,3 +175,26 @@ func less(vc1 map[string]int, name1 string, vc2 map[string]int, name2 string) bo
 	}
 	return name1 < name2
 }
+
+// Sauvegarde du snapshot
+func SaveSnapshot(name, snapshot string, horloge string) {
+  filename := "snapshot_"+name+".save"
+  content := "horloge: " + horloge + "\n"+snapshot
+  f, err := os.Create(filename)
+  if err != nil {
+     stderr.Println(err);
+     return
+  }
+  l, err := f.WriteString(content);
+  if err != nil {
+     stderr.Println(err);
+     f.Close()
+     return
+  }
+  err = f.Close();
+  if err != nil {
+     stderr.Println(err);
+     return
+  }
+  stderr.Printf("Saved %s : %d o\n", filename, l)
+}

@@ -657,6 +657,7 @@ func (c *Controller) VerifierFinSnapshot() {
 		etatStr := string(etatBytes)
 
 		fmt.Println("endSnapshot", etatStr)
+        utils.SaveSnapshot(c.NomCourt, etatStr, utils.EncodeVC(c.VectorClock))
 
 		c.Snapshot = *NewSnapshot()
 		c.SnapshotEnCours = false
