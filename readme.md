@@ -11,6 +11,43 @@ Fonctionnalités principales:
 - cohérence des réplicats grâce à l’algorithme de file d’attente répartie
 - sauvegarde répartie datée grâce à l’algorithme de calcul d’instantanés
 
+## Architecture du réseau
+
+**Topologie**. Le réseau est un anneau unidirectionnel entre trois applications de contrôle (ctrl) combiné à un lien bi-directionnel entre chaque application de contrôle et son application de base (app). Un site est le sous-réseau d'une app et de son ctrl. Si un site envoie un message sur l’anneau, il peut potentielement atteindre tous les sites. Les communications sont FIFO (first in, first out), les messages ne se doublent donc pas.
+
+On construit le réseau avec le shell: les commandes sont automatisées grâce à un shell script `run.sh`
+
+```bash
+#création des entrées et des sorties de chaque application. 
+mkfifo /tmp/in_A1 /tmp/out_A1 /tmp/in_C1 /tmp/out_C1
+mkfifo /tmp/in_A2 /tmp/out_A2 /tmp/in_C2 /tmp/out_C2
+mkfifo /tmp/in_A3 /tmp/out_A3 /tmp/in_C3 /tmp/out_C3
+
+#lancement de chaque application et stockage des PIDs
+go run app/app.go -n "app_1"  < /tmp/in_A1 > /tmp/out_A1 & pids+=($!)
+go run ctrl/ctrl.go -n "ctrl_1" < /tmp/in_C1 > /tmp/out_C1 & pids+=($!)
+
+go run app/app.go -n "app_2"  < /tmp/in_A2 > /tmp/out_A2 & pids+=($!)
+go run ctrl/ctrl.go -n "ctrl_2" < /tmp/in_C2 > /tmp/out_C2 & pids+=($!)
+
+go run app/app.go -n "app_3"  < /tmp/in_A3 > /tmp/out_A3 & pids+=($!)
+go run ctrl/ctrl.go -n "ctrl_3" < /tmp/in_C3 > /tmp/out_C3 & pids+=($!)
+
+# CConnexions des flux avec les tubes (|), les tubes nommés et la commande tee
+cat /tmp/out_A1 > /tmp/in_C1 & pids+=($!)
+cat /tmp/out_C1 | tee /tmp/in_A1 > /tmp/in_C2 & pids+=($!)
+
+cat /tmp/out_A2 > /tmp/in_C2 & pids+=($!)
+cat /tmp/out_C2 | tee /tmp/in_A2 > /tmp/in_C3 & pids+=($!)
+
+cat /tmp/out_A3 > /tmp/in_C3 & pids+=($!)
+cat /tmp/out_C3 | tee /tmp/in_A3 > /tmp/in_C1 & pids+=($!)
+```
+
+On ajoute une interface graphique (client web) pour contrôler l'activité de cahque app (serveur). Notre application étant en temps réel, elle crée une websocket pour transférer de manière économe de petites quantités d'informations du serveur vers le client et **réciproquement**. Trois utilisateurs peuvent ainsi se connecter et participer à l'application via leur navigateur.
+
+![Schéma de notre réseau](reseauSchéma.png)
+
 
 ## Algorithme de contrôle
 
