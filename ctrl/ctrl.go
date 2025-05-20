@@ -345,7 +345,12 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 		}
 	case "snapshot":
 		stderr.Println("je recois un snapshot")
-		c.handleSnapshotMessage(rcvmsg)
+		//c.handleSnapshotMessage(rcvmsg)
+		  if !c.SnapshotEnCours {
+                   c.SnapshotEnCours = true
+                        c.DebutSnapshot()
+                }
+
 	case string(EtatMsg):
 		//stderr.Println("je recois un etat")
 
