@@ -177,11 +177,7 @@ onUnmounted(() => {
       <div class="doctors" v-if="site !== 'PREPOST'">
         <span v-for="n in val" :key="n">🧑‍⚕️</span>
       </div>
-      <p >{{ val }} médecin(s</p>
-      <div class="doctors" v-else">
-      <span v-for="n in val" :key="n">🧑‍⚕️</span>
-
-    </div>
+      <p >{{ val }} médecin(s)</p>
   </div>
 
 </div>
