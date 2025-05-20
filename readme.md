@@ -1,6 +1,6 @@
 # Projet SR05 - programmation d'une application répartie
 
-## Scénario
+## I) Scénario
 
 Post effondrement, une épidémie se propage et touche les hôpitaux d'une région. Les médecins s'affairent d'un hôpital à l'autre pour soigner les malades. Un hôpital peut envoyer un médecin à un autre hôpital.
 
@@ -11,9 +11,11 @@ Fonctionnalités principales:
 - cohérence des réplicats grâce à l’algorithme de file d’attente répartie
 - sauvegarde répartie datée grâce à l’algorithme de calcul d’instantanés
 
-## Construction du réseau
+## II) Architecture du réseau
 
 **Topologie**. Le réseau est un anneau unidirectionnel entre trois applications de contrôle (ctrl) combiné à un lien bi-directionnel entre chaque application de contrôle et son application de base (app). Un site est le sous-réseau d'une app et de son ctrl. Si un site envoie un message sur l’anneau, il peut potentielement atteindre tous les sites. Les communications sont FIFO (first in, first out), les messages ne se doublent donc pas.
+
+### Construction du réseau
 
 On construit le réseau avec le shell: les commandes sont automatisées grâce à un shell script `run.sh`
 
@@ -44,14 +46,15 @@ cat /tmp/out_A3 > /tmp/in_C3 & pids+=($!)
 cat /tmp/out_C3 | tee /tmp/in_A3 > /tmp/in_C1 & pids+=($!)
 ```
 
+### Interface graphique 
 On ajoute une interface graphique (client web) pour contrôler l'activité de cahque app (serveur). Notre application étant en temps réel, elle crée une websocket pour transférer de manière économe de petites quantités d'informations du serveur vers le client et **réciproquement**. Trois utilisateurs peuvent ainsi se connecter et participer à l'application via leur navigateur.
 
 ![Schéma de notre réseau](reseauSchéma.png)
 
 
-## Algorithme de contrôle
+### Algorithme de contrôle
 
-On intercale un contrôleur entre chaque application et l'anneau. Le `ctrl` contrôle ainsi l'activité entre l'app et le réseau, il intercepte les messages envoyés et reçus et leur applique un traitement, ici on prend l'exemple de la couleur (un site blanc devient rouge).
+Niveau applicatif, le contrôleur intercalé entre chaque application et l'anneau permet de contrôler l'activité entre l'app et le réseau. Le ctrl intercepte les messages envoyés et reçus et leur applique un **traitement**, ici on prend l'exemple de la couleur (un site blanc devient rouge).
 > **Algorithme de contrôle**
 - quand ctrl reçoit un message en provenance de son app `(m)`, il y ajoute des infos de controle `(m, couleur,...)` avant de le transmettre sur l'anneau
 - quand ctrl intercepte un message à destination de son app de la forme `(m, couleur...)`, il utilise les infos de contrôle pour mettre à jour les siennes, puis transmet le message  sans le traitement `(m)` à son app
@@ -59,7 +62,7 @@ On intercale un contrôleur entre chaque application et l'anneau. Le `ctrl` cont
 Cet ajout d'un contrôleur permet de s'assurer que le **message** `(m)` n'arrive pas avant le **marqueur** `(couleur,...)` dans le cas d'un réseau non FIFO. On évite ainsi de mettre à mal le processus de diffusion.
 
 
-## Cohérence des réplicats
+## III) Cohérence des réplicats
 
 Chaque site connaît le nombre de médecins présents sur les autres sites, c'est notre donnée partagée. Pour assurer la cohérence des réplicats, on utilise un algorithme qui permet à chaque site de gérer son entrée en section critique (SC):
 > **Algorithme de file d'attente répartie**
@@ -100,7 +103,7 @@ Sinon si le site est le destinataire du message, il le traite:
 
 
 
-## Sauvegarde répartie datée
+## IV) Sauvegarde répartie datée
 
  La **sauvegarde** consiste à réunir des photos locales de l'état de chaque site. Chaque site capture ainsi son état lors du clic et l’envoi sur le réseau à l'état initiateur de la sauvegarde. 
 
@@ -151,7 +154,7 @@ Hypothèse : on suppose que le site initiateur connaît le nombre de site sur l'
 *On ajoute la collecte des messages prépost à l'algorithme de collecte des états locaux, décrit ci-dessus.*
 
 
-Un message prépost est un message envoyé sur l’anneau par un site S_i après que la sauvegarde a été initiée sur un site mais avant que le site S_i ait été prévenu du lancement de la sauvegarde. Ce message en transit sur le canal n’est donc compris dans aucune capture d’état local, il est de couleur blanche. On complète donc l’algorithme pour que ce message soit identifié comme prépost par le premier site rouge sur lequel il arrive : `si je suis rouge et que je reçoit un message blanc => prépost`.
+Un message prépost est un message envoyé sur l’anneau par un site S_i après que la sauvegarde a été initiée sur un site mais avant que le site S_i ait été prévenu du lancement de la sauvegarde. Ce message en transit sur le canal n’est donc compris dans aucune capture d’état local, il est de couleur blanche. On complète donc l’algorithme pour que ce message soit identifié comme prépost par le premier site rouge sur lequel il arrive : `si je suis rouge et que je reçois un message blanc => prépost`.
 
 Une fois le message prépost identifié et marqué `message.prepost<-true`, le site rouge le renvoie sur l’anneau. Chaque site le transfère jusqu'à ce que l'initiateur de la sauvegarde l’intercepte `si initiateur == True` et l’ajoute à l'état global de la sauvegarde : `EG_i<- EG_i U {prepost}`
 
