@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 type MessageType string
 
 const (
