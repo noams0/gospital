@@ -18,11 +18,14 @@ onMounted(() => {
   socket.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
-      console.log(data)
+      // console.log(data)
       doctorCounts.value = data.doctors
       doctorCountsSender.value = data.sender
       activityLog.value = data.activity_log || []
-      console.log(activityLog.value)
+      snapshot.value = data.snapshot
+      console.log(snapshot.value)
+
+
     } catch (err) {
       console.error('Message non JSON :', event.data)
     }
@@ -39,6 +42,34 @@ onMounted(() => {
 })
 const doctorCountsSender = ref("")
 const activityLog = ref("")
+const snapshot = ref("")
+
+const parsedSnapshot = computed(() => {
+  try {
+    const outer = JSON.parse(snapshot.value || '{}')
+    const result = {}
+
+    for (const [site, innerStr] of Object.entries(outer)) {
+      // Cas spécial pour PREPOST
+      if (site === "PREPOST") {
+        result[site] = innerStr
+        continue
+      }
+
+      try {
+        const inner = JSON.parse(innerStr)
+        result[site] = inner[site] || inner
+      } catch (e) {
+        result[site] = `Erreur de parsing: ${innerStr}`
+      }
+    }
+
+    return result
+  } catch (err) {
+    return {}
+  }
+})
+
 
 const doctorCountsSenderNb = computed(() =>
 doctorCounts.value[doctorCountsSender.value]
@@ -89,6 +120,17 @@ function demanderSnapshot() {
   socket.send(JSON.stringify(message))
 }
 
+const speed = ref(50)
+
+function changerVitesse() {
+  if (socket.readyState === WebSocket.OPEN) {
+    const message = JSON.stringify({
+      type: 'speed',
+      delay: speed.value
+    })
+    socket.send(message)
+  }
+}
 
 onUnmounted(() => {
   if (socket) socket.close()
@@ -96,6 +138,20 @@ onUnmounted(() => {
 </script>
 
 <template>
+
+  <div class="speed-control">
+    <label for="speedRange">⏱️ Vitesse de simulation : {{ speed }} ms</label>
+    <input
+        id="speedRange"
+        type="range"
+        min="10"
+        max="5000"
+        step="10"
+        v-model="speed"
+    />
+    <button @click="changerVitesse">✅ Appliquer la vitesse</button>
+  </div>
+
   <button @click="demanderSnapshot" style="margin-bottom: 20px">
     🔄 Déclencher une sauvegarde instantanée
   </button>
@@ -114,7 +170,17 @@ onUnmounted(() => {
       </button>
     </div>
   </div>
+  <div class="snapshot-display">
+    <h3>📸 État global sauvegardé</h3>
+    <div class="hospital" v-for="(val, site) in parsedSnapshot" :key="site">
+      <h2>{{ site }}</h2>
+      <div class="doctors" v-if="site !== 'PREPOST'">
+        <span v-for="n in val" :key="n">🧑‍⚕️</span>
+      </div>
+      <p >{{ val }} médecin(s)</p>
+  </div>
 
+</div>
   <div class="activity-log">
     <h3>Journal des activités</h3>
     <ul>
@@ -126,6 +192,24 @@ onUnmounted(() => {
       />
     </ul>
   </div>
+
+
+
+  <!--    <div class="snapshot-site" v-for="(etat, site) in snapshotParsed" :key="site">-->
+<!--      <h4>{{ site }}</h4>-->
+<!--      <ul>-->
+<!--        <li><strong>Horloge :</strong> {{ etat.Horloge }}</li>-->
+<!--        <li><strong>InSection :</strong> {{ etat.InSection ? "Oui" : "Non" }}</li>-->
+<!--        <li><strong>Doctors :</strong>-->
+<!--          <ul>-->
+<!--            <li v-for="(count, doc) in etat.DoctorsCount" :key="doc">-->
+<!--              {{ doc }} : {{ count }}-->
+<!--            </li>-->
+<!--          </ul>-->
+<!--        </li>-->
+<!--      </ul>-->
+<!--    </div>-->
+
 
 </template>
 
@@ -214,5 +298,35 @@ button {
   color: #721c24;
 }
 
+
+
+.snapshot-display {
+  display: flex;
+  color: black;
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #e0f7fa;
+  border-left: 4px solid #006064;
+}
+
+.snapshot-site {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.snapshot-site h4 {
+  margin-bottom: 0.3rem;
+  color: #00796b;
+}
+
+.speed-control {
+  margin: 1em 0;
+}
+input[type="range"] {
+  width: 100%;
+}
 
 </style>
