@@ -11,19 +11,19 @@ Fonctionnalités principales:
 - cohérence des réplicats grâce à l’algorithme de file d’attente répartie
 - sauvegarde répartie datée grâce à l’algorithme de calcul d’instantanés
 
-## Architecture du réseau
+## Construction du réseau
 
 **Topologie**. Le réseau est un anneau unidirectionnel entre trois applications de contrôle (ctrl) combiné à un lien bi-directionnel entre chaque application de contrôle et son application de base (app). Un site est le sous-réseau d'une app et de son ctrl. Si un site envoie un message sur l’anneau, il peut potentielement atteindre tous les sites. Les communications sont FIFO (first in, first out), les messages ne se doublent donc pas.
 
 On construit le réseau avec le shell: les commandes sont automatisées grâce à un shell script `run.sh`
 
 ```bash
-#création des entrées et des sorties de chaque application. 
+#Création des entrées et des sorties de chaque application. 
 mkfifo /tmp/in_A1 /tmp/out_A1 /tmp/in_C1 /tmp/out_C1
 mkfifo /tmp/in_A2 /tmp/out_A2 /tmp/in_C2 /tmp/out_C2
 mkfifo /tmp/in_A3 /tmp/out_A3 /tmp/in_C3 /tmp/out_C3
 
-#lancement de chaque application et stockage des PIDs
+#Lancement de chaque application et stockage des PIDs
 go run app/app.go -n "app_1"  < /tmp/in_A1 > /tmp/out_A1 & pids+=($!)
 go run ctrl/ctrl.go -n "ctrl_1" < /tmp/in_C1 > /tmp/out_C1 & pids+=($!)
 
@@ -33,7 +33,7 @@ go run ctrl/ctrl.go -n "ctrl_2" < /tmp/in_C2 > /tmp/out_C2 & pids+=($!)
 go run app/app.go -n "app_3"  < /tmp/in_A3 > /tmp/out_A3 & pids+=($!)
 go run ctrl/ctrl.go -n "ctrl_3" < /tmp/in_C3 > /tmp/out_C3 & pids+=($!)
 
-# CConnexions des flux avec les tubes (|), les tubes nommés et la commande tee
+#Connexions des flux avec les tubes (|), les tubes nommés et la commande tee
 cat /tmp/out_A1 > /tmp/in_C1 & pids+=($!)
 cat /tmp/out_C1 | tee /tmp/in_A1 > /tmp/in_C2 & pids+=($!)
 
@@ -130,13 +130,15 @@ _______________
 ### Algorithme de collecte des états locaux
 *On ajoute la collecte des états locaux à l'algorithme de lestage, décrit ci-dessus.*
 
+Hypothèse : on suppose que le site initiateur connaît le nombre de site sur l'anneau, ici 3.
+
 1. <ins>(Initialisation)</ins>. Les variables de chaque site sont initialisées : `initiateur <- false`, EG l'état global `EG_i<- {}` et le nombre d'états attendus `NbEA_i <- 3` 
 
 2. Une app reçoit un message de son front lui indiquant de lancer la sauvegarde <ins>(début)</ins>. L'app envoie alors un message `(save)` <ins>(émission)</ins> à son ctrl qui le réceptionne <ins>(réception)</ins>. 
 
 3. Le ctrl à l'initiative de la sauvegarde met à jour ses variables <ins>(début)</ins>. `initiateur <- True`, EG l'état global `EG_i<- {etatLocal_i}` et le nombre d'états attendus `NbEA_i <- 2` . L'état local contient le nom du site, son horloge vectorielle, ainsi que son nombre de médecins.
 
-4. Le ctrl applique un traitement au message et lui applique un traitement : le message est lesté d'une couleur `(save, rouge)` en vue de diffuser la sauvegarde. Le ctrl le transmettre sur l’anneau <ins>(émission)</ins>.
+4. Le ctrl applique un traitement au message : le message est lesté d'une couleur `(save, rouge)` en vue de diffuser la sauvegarde. Le ctrl le transmettre sur l’anneau <ins>(émission)</ins>.
 
 5. Le premier ctrl de l’anneau intercepte le message <ins>(réception)</ins>, compare sa couleur à celle du message. Comme il est blanc, il met à jour ses variables, dont `EG_i<- {etatLocal_i}` et envoie un message `(état, EG_i)`sur l'anneau à destination du site initiateur <ins>(émission)</ins>. Les autres ctrl font de même.
 
@@ -148,22 +150,18 @@ _______________
 
 *On ajoute la collecte des messages prépost à l'algorithme de collecte des états locaux, décrit ci-dessus.*
 
-1. <ins>(Initialisation)</ins> : Les variables de chaque site sont initialisées, en particulier `NBMA_i <- 0` 
+
+Un message prépost est un message envoyé sur l’anneau par un site S_i après que la sauvegarde a été initiée sur un site mais avant que le site S_i ait été prévenu du lancement de la sauvegarde. Ce message en transit sur le canal n’est donc compris dans aucune capture d’état local, il est de couleur blanche. On complète donc l’algorithme pour que ce message soit identifié comme prépost par le premier site rouge sur lequel il arrive : `si je suis rouge et que je reçoit un message blanc => prépost`.
+
+Une fois le message prépost identifié et marqué `message.prepost<-true`, le site rouge le renvoie sur l’anneau. Chaque site le transfère jusqu'à ce que l'initiateur de la sauvegarde l’intercepte `si initiateur == True` et l’ajoute à l'état global de la sauvegarde : `EG_i<- EG_i U {prepost}`
+
+Comme les communications sont FIFO sur l'anneau logique (aucun message ne peut en doubler un autre), il n'est pas nécessaire de vérifier que tous les messages préposts sont arrivés : un message prépost envoyé par un site (alors encore blanc) le sera toujours avant l'envoi du message état de ce site (devenu rouge). Quand la variable permettant au site initiateur de compter les messages états reçus `NbEA_i` arrive à 0, tous les messages prépost ont déjà été reçus et ajouté à l'état global. 
+
+A la fin de l’algo, le site initiateur de la sauvegarde a construit un état global du système `EG_i` qui contient :
+- les états locaux des trois sites du réseau
+- tous les messages préposts
 
 
-5. un message prépost est un message envoyé sur l’anneau par un site S_i après que la sauvegarde a été initiée sur un site mais avant que le site S_i ait été prévenu du lancement de la sauvegarde. Ce message en transit sur le canal n’est donc compris dans aucune capture d’état local, il est de couleur blanche. On complète donc l’algorithme pour que ce message soit identifié comme prépost par le premier site rouge sur lequel il arrive. Une fois le message prépost identifié et marqué message.prepost<-true), le site rouge le renvoie sur l’anneau. Chaque site le transfère jusqu'à ce que l'initiateur de la sauvegarde l’intercepte et l’ajoute à l'état global de la sauvegarde. 
+Si le réseau n'était pas FIFO, on aurait du ajouter une variable `bilan` sur chaque site pour évaluer de façon répartie le nombre de messages prépost/en transit : `bilan_i = somme émis(i->j) - somme reçu(i<-j)`. Chaque site enverrait ensuite un message `(bilan)` au site initiateur qui complèterait petit à petit la carte des messages attendus `NbMA_i <-NbMA_i + bilan`. L'algorithme terminerait alors quand `NbMA_i == 0`.
 
-Ainsi, si on généralise : etatCanal = ensemble émis(i->j) / ensemble reçu(j<-i)
-calculs sur des variables doivent être fait sur chaque site “Si un site sur l'anneau envoie un message après le début de la sauvegarde, mais avant d'être prévenu qu'une sauvegarde a été lancée, on obtient un message prépost. Ce message va être identifié comme prépost par le premier site Jaune sur lequel il va arriver..”
-
-“Il sera ensuite redirigé jusqu'à l'initiateur de la sauvegarde pour être ajouté à l'état global”  
-(6) Étant donné que les communications sont FIFO sur l'anneau logique, nous n'avons pas besoin de vérifier que tous les messages préposts sont arrivés. En effet, par définition, un message prépost envoyé par un site le sera toujours avant l'envoi du message état de ce site. Ainsi, l'initiateur peut être sûr qu'il recevra les messages préposts d'un site avant son message état, car aucun message ne peut en doubler un autre (FIFO). Il suffit donc à l'initiateur de compter le nombre d'états qu'il reçoit. Lorsqu'il les a tous reçus, il peut considérer que la sauvegarde est terminée. Cela suppose qu'il connaît à l'avance le nombre de sites présents sur le réseau. Une fois la sauvegarde terminée, il vérifie grâce aux horloges vectorielles que la coupure est cohérente.
-
-(7) A la fin de l’algo, le site initiateur de la sauvegarde a construit un état global du système qui contient 
-une liste d'états locaux, il y en a autant qu'il y a de sites sur le réseau.
-une liste de messages préposts
-
-PS : si le réseau n'était pas FIFO, on aurait du ajouter une variable `bilan` sur chaque site pour évaluer de façon répartie le nombre de messages prépost.
-
-
-### Vérification de la cohérence de la sauvegarde
+Une fois la sauvegarde terminée, on aurait pu vérifier grâce aux horloges vectorielles la cohérence de la sauvegarde.
