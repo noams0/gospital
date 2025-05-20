@@ -136,6 +136,28 @@ Le **problème réparti** rencontré est le suivant : les clics n’ont pas lieu
 
 Cet algorithme permet de diffuser la sauvegarde à partir d'un site initiateur sur tout le réseau et de collecter tous les états locaux capturés sur ce même site initiateur pour contruire alors un état global cohérent. En raison de la complexité de l'algorithme, on décide d'en expliquer la construction par ajout de fonctionnalités.
 
+
+### Déroulement de notre algo 
+
+- Un utilisateur clique sur **« Déclencher une sauvegarde instantanée »**.
+- Un message `"snapshot"` est transmis du **front** au **back App** via la WebSocket.
+- Ce message `"snapshot"` est ensuite retransmis de **App** à **Ctrl**.
+- Le **Ctrl** démarre la sauvegarde :
+    - il passe en **couleur rouge**,
+    - définit `initiateur = true`,
+    - et envoie l'information de sauvegarde aux autres sites.
+- Lorsqu’un site reçoit un message indiquant le début de la sauvegarde :
+    - il demande à son **App** de lui transmettre son état local,
+    - l’**App** envoie alors son état local au **Ctrl**,
+    - le **Ctrl** transmet cet `étatLocal` sur l’**anneau**.
+- Lorsque le site **initiateur** reçoit l’`étatLocal` d’un site `S_j` :
+    - il l’ajoute à l’**état global**,
+    - décrémente le **nombre de sites attendus**,
+    - si ce nombre atteint zéro :
+        - il sait que la sauvegarde est terminée,
+        - il envoie l’**état global** à son **App**,
+        - et l’**App** le transmet au **front** via la WebSocket.
+
 _______________
 
 ### Algorithme de lestage
