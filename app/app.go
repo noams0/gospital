@@ -17,6 +17,8 @@ var p_nom *string = flag.String("n", "nom", "nom")
 var globalMutex = &sync.Mutex{}
 
 func (d *DoctorInfo) SendDoctorInfo() utils.DoctorPayload {
+	/*Retourne un objet contenant l’état courant du médecin 
+	(compteurs, logs, snapshot) pour l’envoi.*/
 	return utils.DoctorPayload{
 		Sender:       *p_nom,
 		DoctorsCount: d.DoctorsCount,
@@ -26,6 +28,7 @@ func (d *DoctorInfo) SendDoctorInfo() utils.DoctorPayload {
 }
 
 func NewApp(name string) *App {
+	/*Initialise et retourne une nouvelle instance de l’application */
 	return &App{
 		name: name,
 		doctorInfo: DoctorInfo{

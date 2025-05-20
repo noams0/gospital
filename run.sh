@@ -25,13 +25,13 @@ trap cleanup SIGINT SIGTERM EXIT
 
 
 go run app/*.go -n "app_1"  < /tmp/in_A1 > /tmp/out_A1 & pids+=($!)
-go run ctrl/ctrl.go -n "ctrl_1" < /tmp/in_C1 > /tmp/out_C1 & pids+=($!)
+go run ctrl/*.go -n "ctrl_1" < /tmp/in_C1 > /tmp/out_C1 & pids+=($!)
 
 go run app/*.go -n "app_2"  < /tmp/in_A2 > /tmp/out_A2 & pids+=($!)
-go run ctrl/ctrl.go -n "ctrl_2" < /tmp/in_C2 > /tmp/out_C2 & pids+=($!)
+go run ctrl/*.go -n "ctrl_2" < /tmp/in_C2 > /tmp/out_C2 & pids+=($!)
 
 go run app/*.go -n "app_3"  < /tmp/in_A3 > /tmp/out_A3 & pids+=($!)
-go run ctrl/ctrl.go -n "ctrl_3" < /tmp/in_C3 > /tmp/out_C3 & pids+=($!)
+go run ctrl/*.go -n "ctrl_3" < /tmp/in_C3 > /tmp/out_C3 & pids+=($!)
 
 cd front || exit
 

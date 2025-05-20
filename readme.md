@@ -1,5 +1,13 @@
 # Projet SR05 - programmation d'une application répartie
 
+## Prérequis
+
+On utilise le stack technique :
+- Back-end : golang 1.23
+- Front-ed : vue.js
+- Com : websocket (gozilla)
+- une architecture linux
+
 Pour lancer l'app, ouvrir un terminal et faire
 ```bash
 ./run.sh
@@ -23,7 +31,7 @@ Fonctionnalités principales:
 
 ## II) Architecture du réseau
 
-**Topologie**. Le réseau est un anneau unidirectionnel entre trois applications de contrôle (ctrl) combiné à un lien bi-directionnel entre chaque application de contrôle et son application de base (app). Un site est le sous-réseau d'une app et de son ctrl. Si un site envoie un message sur l’anneau, il peut potentielement atteindre tous les sites. Les communications sont FIFO (first in, first out), les messages ne se doublent donc pas.
+**Topologie**. Le réseau est un anneau unidirectionnel entre trois applications de contrôle (ctrl) combiné à un lien bi-directionnel entre chaque application de contrôle et son application de base (app). Un site est le sous-réseau d'une app et de son ctrl. Si un site envoie un message sur l’anneau, il peut potentielement atteindre tous les sites. Les communications sont FIFO (first in, first out), les messages ne se dépassent donc pas.
 
 ### Construction du réseau
 
@@ -37,13 +45,13 @@ mkfifo /tmp/in_A3 /tmp/out_A3 /tmp/in_C3 /tmp/out_C3
 
 #Lancement de chaque application et stockage des PIDs
 go run app/*.go -n "app_1"  < /tmp/in_A1 > /tmp/out_A1 & pids+=($!)
-go run ctrl/ctrl.go -n "ctrl_1" < /tmp/in_C1 > /tmp/out_C1 & pids+=($!)
+go run ctrl/*.go -n "ctrl_1" < /tmp/in_C1 > /tmp/out_C1 & pids+=($!)
 
 go run app/*.go -n "app_2"  < /tmp/in_A2 > /tmp/out_A2 & pids+=($!)
-go run ctrl/ctrl.go -n "ctrl_2" < /tmp/in_C2 > /tmp/out_C2 & pids+=($!)
+go run ctrl/*.go -n "ctrl_2" < /tmp/in_C2 > /tmp/out_C2 & pids+=($!)
 
 go run app/*.go -n "app_3"  < /tmp/in_A3 > /tmp/out_A3 & pids+=($!)
-go run ctrl/ctrl.go -n "ctrl_3" < /tmp/in_C3 > /tmp/out_C3 & pids+=($!)
+go run ctrl/*.go -n "ctrl_3" < /tmp/in_C3 > /tmp/out_C3 & pids+=($!)
 
 #Connexions des flux avec les tubes (|), les tubes nommés et la commande tee
 cat /tmp/out_A1 > /tmp/in_C1 & pids+=($!)
@@ -57,19 +65,20 @@ cat /tmp/out_C3 | tee /tmp/in_A3 > /tmp/in_C1 & pids+=($!)
 ```
 
 ### Interface graphique 
-On ajoute une interface graphique (client web) pour contrôler l'activité de chaque app (serveur). Notre application étant en temps réel, elle crée une websocket pour transférer de manière économe de petites quantités d'informations du serveur vers le client et **réciproquement**. Trois utilisateurs peuvent ainsi se connecter et participer à l'application via leur navigateur.
+On ajoute une interface graphique (client web) pour contrôler l'activité de chaque app (serveur). Notre application étant en temps réel, elle crée une websocket, associée à un port particulier (ex : 8080), pour transférer de petites quantités d'informations du serveur vers le client et **réciproquement**. Trois utilisateurs peuvent ainsi se connecter et participer à l'application via leur navigateur.
 
 ![Schéma de notre réseau](reseauSchéma.png)
 
 
 ### Algorithme de contrôle
 
-Niveau applicatif, le contrôleur intercalé entre chaque application et l'anneau permet de contrôler l'activité entre l'app et le réseau. Le ctrl intercepte les messages envoyés et reçus et leur applique un **traitement**, ici on prend l'exemple de la couleur (un site blanc devient rouge).
+On utilise l'algorithme de contrôle pour distinguer les fonctionnalités applicatives des fonctionnalités de contrôle.
+Un contrôleur intercalé entre chaque application et l'anneau permet de contrôler l'activité entre l'app et le réseau. Le ctrl intercepte les messages envoyés et reçus et leur applique un **traitement**, comme par exemple en marquant le message d'une couleur (un site blanc devient rouge).
 > **Algorithme de contrôle**
-- quand ctrl reçoit un message en provenance de son app `(m)`, il y ajoute des infos de controle `(m, couleur,...)` avant de le transmettre sur l'anneau
-- quand ctrl intercepte un message à destination de son app de la forme `(m, couleur...)`, il utilise les infos de contrôle pour mettre à jour les siennes, puis transmet le message  sans le traitement `(m)` à son app
+- quand ctrl reçoit un message en provenance de son app `(m)`, il y ajoute des infos de controle `(m, marqueur,...)` avant de le transmettre sur l'anneau
+- quand ctrl intercepte un message à destination de son app de la forme `(m, marqueur...)`, il utilise les infos de contrôle pour mettre à jour les siennes, puis transmet le message  sans le traitement `(m)` à son app
 
-Cet ajout d'un contrôleur permet de s'assurer que le **message** `(m)` n'arrive pas avant le **marqueur** `(couleur,...)` dans le cas d'un réseau non FIFO. On évite ainsi de mettre à mal le processus de diffusion.
+Dans le cas d'un réseau non FIFO, cet ajout d'un contrôleur permettrait de s'assurer que le **message** `(m)` n'arrive pas avant le **marqueur** `(marqueur,...)`. On éviterait ainsi de mettre à mal le processus de diffusion.
 
 
 ## III) Cohérence des réplicats
@@ -84,29 +93,34 @@ Chaque site connaît le nombre de médecins présents sur les autres sites, c'es
 
 Pour la cohérence des réplicats, on utilise les estampilles. Les estampilles K permettent en effet de construire une horloge injective : à chaque action correspond une date unique (H(a_i),i). Les actions peuvent alors être strictement et totalement ordonnées dans une liste; on obtient ainsi une unique observation (ou file d’attente).
 
-Au cours lde l'algorithme, chaque site reçoit tous les messages REQ et LIB de tous les autres sites et construit sa propre file d’attente FIFO grâce aux estampilles. Chaque site prend une décision au regard de sa file d’attente (exclusion mutuelle) : si la requête du site est de type REQ et qu’il a l’estampille la plus ancienne, alors il entre en SC.
+Au cours de l'algorithme, chaque site reçoit tous les messages REQ et LIB de tous les autres sites et construit sa propre file d’attente FIFO grâce aux estampilles. Chaque site prend une décision au regard de sa file d’attente (exclusion mutuelle) : si la requête du site est de type REQ et qu’il a l’estampille la plus ancienne, alors il entre en SC.
 
 
 ### Déroulement de l'algorithme
 
-D'abord, le front déclenche l’envoie d’un message spontané de son back App_i <ins>(début)</ins>: 
+Depuis l'interface de app_i, un utilisateur clique sur "envoyer un médecin" vers le site app_j. Le front envoie alors un message à travers la websocket à son back app_i <ins>(début)</ins>: 
 - App envoie un message `(demSC)` au ctrl et attend
-- Ctrl envoie un message de type `(req, horloge locale, n° du site)` sur l'anneau
-- quand le ctrl a reçu un message de type `(ack, h, n°)` de chaque site, il informe son app qu'elle a la SC `(debSC)`
-- App décrémente `medecin-=1` la donnée puis envoie deux messages à son ctrl : `(réplicat)`, `(EnvoieMedecin) à S_j` et `(finSC)`
-- Ctrl transmet le `(réplicat)` et un message de type `(lib, h, n°)` et envoir le `(médecin) à S_j` sur l'anneau
+- Ctrl envoie un message de type `(req, horloge locale, sender)` sur l'anneau
+- quand le ctrl a reçu un message de type `(req ou ack, h, sender)` de chaque site et qu'il a la plus petite estampille, il informe son app qu'elle a la SC `(debSC)`
+- App décrémente `medecin-=1` la donnée puis envoie un message à son ctrl : `(finSC, réplicat)`
+- Ctrl_i transmet un message de type `(réplicat, lib, h, sender)` 
+- les ctrl_j reçoivent un message de type `(réplicat, lib, h, sender)`: ils mettent à jour leur horloge et transmettent le réplicat à leur app.
+- App_i envoie à son controleur `(médecin) à S_j`
+- Ctrl_i transmet le `(médecin) à S_j` sur l'anneau
+
 
 ![Schéma de notre réseau](journalActivites.png)
+
+
 
 Si le site n'est pas le destinataire du message `(médecin)`, il le transmet sur le réseau.
 Sinon si le site est le destinataire du message, il le traite: 
 - Ctrl informe son App de la réception d'un médecin
 - l'App demande la section critique à son ctrl et attend `waitingforreceiving()`
-- Ctrl envoie un message de type `(req, horloge locale, n° du site)` sur l'anneau
-- quand le ctrl a reçu un message de type `(ack, h, n°)` de chaque site, il informe son app qu'elle a la SC
-- App incrémente la donnée `medecin+=1`
-- App informe son Ctrl quelle relâche la SC et lui transmet son réplicat
-- Ctrl transmet le `(réplicat)` et un message de type `(lib, h, n°)` sur l'anneau
+- Ctrl envoie un message de type `(req, horloge locale, sender)` sur l'anneau
+- quand le ctrl a reçu un message de type `(ack ou req, h, sender)` de chaque site et qu'il a la plus petite estampilel, il informe son app qu'elle a la SC `(debSC)`
+- App incrémente la donnée `medecin+=1` puis envoie un message à son ctrl : `(finSC, réplicat)`
+- Ctrl transmet un message de type `(réplicat, lib, h, sender)` sur l'anneau
 - tous les autres sites mettent à jour leur (réplicat) et leur estampille.
 
 ![Schéma de notre réseau](journalActivites_reception.png)
@@ -167,7 +181,7 @@ Un message prépost est un message envoyé sur l’anneau par un site S_i après
 
 Une fois le message prépost identifié et marqué `message.prepost<-true`, le site rouge le renvoie sur l’anneau. Chaque site le transfère jusqu'à ce que l'initiateur de la sauvegarde l’intercepte `si initiateur == True` et l’ajoute à l'état global de la sauvegarde : `EG_i<- EG_i U {prepost}`
 
-Comme les communications sont FIFO sur l'anneau logique (aucun message ne peut en doubler un autre), il n'est pas nécessaire de vérifier que tous les messages préposts sont arrivés : un message prépost envoyé par un site (alors encore blanc) le sera toujours avant l'envoi du message état de ce site (devenu rouge). Quand la variable permettant au site initiateur de compter les messages états reçus `NbEA_i` arrive à 0, tous les messages prépost ont déjà été reçus et ajouté à l'état global. 
+Comme les communications sont FIFO sur l'anneau logique (aucun message ne peut en dépasser un autre), il n'est pas nécessaire de vérifier que tous les messages préposts sont arrivés : un message prépost envoyé par un site (alors encore blanc) le sera toujours avant l'envoi du message état de ce site (devenu rouge). Quand la variable permettant au site initiateur de compter les messages états reçus `NbEA_i` arrive à 0, tous les messages prépost ont déjà été reçus et ajouté à l'état global. 
 
 A la fin de l’algo, le site initiateur de la sauvegarde a construit un état global du système `EG_i` qui contient :
 - les états locaux des trois sites du réseau
