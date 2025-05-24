@@ -1,10 +1,18 @@
 <script setup>
 import {computed, onMounted, onUnmounted, ref} from 'vue'
 
-const wsUrl = import.meta.env.VITE_APP_WS_URL
 const doctorCounts = ref({})
 
 let socket = null
+
+const siteId = import.meta.env.VITE_SITE_ID
+const wsUrl = getWsUrl(siteId)
+console.log('WebSocket URL:', wsUrl)
+
+function getWsUrl(siteId) {
+  const port = 8080 + Number(siteId)
+  return `ws://localhost:${port}/ws`
+}
 
 
 onMounted(() => {

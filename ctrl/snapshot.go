@@ -1,21 +1,20 @@
 package main
 
 import (
-    "encoding/json"
-    "fmt"
-    "strconv"
-    "gospital/utils"
+	"encoding/json"
+	"fmt"
+	"gospital/utils"
+	"strconv"
 )
 
-
 // initialisation de la sauvegarde
-func NewSnapshot() *Snapshot {
+func NewSnapshot(nbSite int) *Snapshot {
 	return &Snapshot{
 		Couleur:                 Blanc,
 		EtatGlobal:              make(map[string]interface{}),
 		EtatLocal:               make(map[string]interface{}),
 		Initiateur:              false,
-		NbEtatAttendu:           N,
+		NbEtatAttendu:           5,
 		Bilan:                   0,
 		NbMessagePrepostAttendu: 0,
 		EtatEnvoye:              false,
@@ -36,7 +35,8 @@ func (s *Snapshot) UpdateEtatLocal(c *Controller) {
 func (c *Controller) DebutSnapshot() {
 	c.Snapshot.Couleur = Rouge
 	c.Snapshot.Initiateur = true
-	c.Snapshot.NbEtatAttendu = N // Pas N - 1 car on attent la valeur locale
+	stderr.Println("NB SITE", c.NbSite)
+	c.Snapshot.NbEtatAttendu = c.NbSite // Pas N - 1 car on attend la valeur locale
 	c.Snapshot.NbMessagePrepostAttendu = c.Snapshot.Bilan
 	c.Snapshot.EtatEnvoye = true
 	fmt.Println("askForState")
@@ -44,7 +44,7 @@ func (c *Controller) DebutSnapshot() {
 		utils.Msg_format("sender", c.Nom) +
 		utils.Msg_format("msg", "1") + //IMPORTANT POUR DIRE QUE CA VIENT DE APP
 		c.Msg_Horloge() +
-		utils.Msg_format("couleur", string(c.Snapshot.Couleur)) //ROUGE 
+		utils.Msg_format("couleur", string(c.Snapshot.Couleur)) //ROUGE
 
 	c.EnvoyerSurAnneau(SnapshotMsg, msg)
 
@@ -117,7 +117,6 @@ func (c *Controller) ReceptionMsgAppDeCtrl(message string, couleurRecue Couleur)
 	c.ForwardToApp(message)
 }
 
-
 func (c *Controller) VerifierFinSnapshot() {
 	/*Vérifie si le snapshot est terminé et effectue la sauvegarde.*/
 
@@ -131,8 +130,7 @@ func (c *Controller) VerifierFinSnapshot() {
 		fmt.Println("endSnapshot", etatStr)
 		utils.SaveSnapshot(c.NomCourt, etatStr, utils.EncodeVC(c.VectorClock))
 
-		c.Snapshot = *NewSnapshot()
+		c.Snapshot = *NewSnapshot(c.NbSite)
 		c.SnapshotEnCours = false
 	}
 }
-

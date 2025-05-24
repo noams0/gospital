@@ -1,14 +1,22 @@
 #!/bin/bash
 
+# Nombre total de sites : premier argument ou 3 par défaut
+total_sites=${1:-3}
+
+echo "Lancement avec $total_sites sites..."
+
+# Nettoyage des FIFO
 rm -f /tmp/in_* /tmp/out_*
 
-# Création des FIFO pour 5 apps et 5 contrôleurs
-for i in {1..5}; do
+# Création des FIFO dynamiquement
+for i in $(seq 1 $total_sites); do
   mkfifo /tmp/in_A$i /tmp/out_A$i /tmp/in_C$i /tmp/out_C$i
 done
 
+# Tableau des PIDs à surveiller pour cleanup
 pids=()
 
+# Fonction de nettoyage à la fermeture
 cleanup() {
   echo "Arrêt des processus..."
   for pid in "${pids[@]}"; do
@@ -18,29 +26,27 @@ cleanup() {
   exit
 }
 
+# Appel automatique de cleanup si interruption
 trap cleanup SIGINT SIGTERM EXIT
 
-# Lancement des apps et des contrôleurs
-for i in {1..5}; do
-  go run app/*.go -n "app_$i"  < /tmp/in_A$i > /tmp/out_A$i & pids+=($!)
-  go run ctrl/*.go -n "ctrl_$i" < /tmp/in_C$i > /tmp/out_C$i & pids+=($!)
+# Lancement des apps et contrôleurs avec passage du nombre total
+for i in $(seq 1 $total_sites); do
+  go run app/*.go -n "app_$i" -total $total_sites < /tmp/in_A$i > /tmp/out_A$i & pids+=($!)
+  go run ctrl/*.go -n "ctrl_$i"  -total $total_sites  < /tmp/in_C$i > /tmp/out_C$i & pids+=($!)
 done
 
 # Lancement des front-ends
 cd front || exit
 
-npm run dev:8080 & pids+=($!)
-npm run dev:8081 & pids+=($!)
-npm run dev:8082 & pids+=($!)
-npm run dev:8083 & pids+=($!)
-npm run dev:8084 & pids+=($!)
+for i in $(seq 0 $((total_sites - 1))); do
+  VITE_SITE_ID=$i npm run dev & pids+=($!)
+done
 
 cd ..
 
-# Connexions des flux (anneau unidirectionnel)
-for i in {1..5}; do
-  next=$(( (i % 5) + 1 ))
-
+# Connexion des flux en anneau unidirectionnel
+for i in $(seq 1 $total_sites); do
+  next=$(( (i % total_sites) + 1 ))
   cat /tmp/out_A$i > /tmp/in_C$i & pids+=($!)
   cat /tmp/out_C$i | tee /tmp/in_A$i > /tmp/in_C$next & pids+=($!)
 done

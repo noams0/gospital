@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -152,20 +153,18 @@ func Int_to_app(i int) string {
 }
 
 func App_to_ctrl(app string) string {
-	switch app {
-	case "app_1":
-		return "ctrl_1"
-	case "app_2":
-		return "ctrl_2"
-	case "app_3":
-		return "ctrl_3"
-	case "app_4":
-		return "ctrl_4"
-	case "app_5":
-		return "ctrl_5"
-	default:
+	re := regexp.MustCompile(`app_(\d+)`)
+	matches := re.FindStringSubmatch(app)
+	if len(matches) != 2 {
 		return "ctrl"
 	}
+
+	num, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return "ctrl"
+	}
+
+	return fmt.Sprintf("ctrl_%d", num)
 }
 
 func less(vc1 map[string]int, name1 string, vc2 map[string]int, name2 string) bool {

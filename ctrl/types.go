@@ -50,6 +50,7 @@ type Controller struct {
 	Snapshot        Snapshot
 	SnapshotEnCours bool
 	Speed           time.Duration
+	NbSite          int
 }
 type EtatMessage struct {
 	EtatLocal map[string]interface{}

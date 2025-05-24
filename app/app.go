@@ -27,21 +27,18 @@ func (d *DoctorInfo) SendDoctorInfo() utils.DoctorPayload {
 	}
 }
 
-func NewApp(name string) *App {
+func NewApp(name string, totalSites int) *App {
 	/*Initialise et retourne une nouvelle instance de l’application */
+	doctors := make(map[string]int)
+	for i := 1; i <= totalSites; i++ {
+		appName := fmt.Sprintf("app_%d", i)
+		doctors[appName] = 5 // nombre initial de médecins pour ce site
+	}
+
 	return &App{
 		name: name,
 		doctorInfo: DoctorInfo{
-			DoctorsCount: map[string]int{
-				"app_1": 5,
-				"app_2": 3,
-				"app_3": 7,
-				"app_4": 5,
-				"app_5": 0,
-			},
-			//ActivityLog: []string{
-			//	"DemSC", "DebSC", "FinSC", "DemSC",
-			//},
+			DoctorsCount: doctors,
 		},
 		actions:   make(chan map[string]interface{}, 10),
 		waitingSC: false,
@@ -52,20 +49,7 @@ func (a *App) run() {
 	/*Lance WebSocket, démarre la réception des actions,
 	puis traite les actions reçues*/
 	var wsURL string
-	switch a.name {
-	case "app_1":
-		wsURL = ":8080"
-	case "app_2":
-		wsURL = ":8081"
-	case "app_3":
-		wsURL = ":8082"
-	case "app_4":
-		wsURL = ":8083"
-	case "app_5":
-		wsURL = ":8084"
-	default:
-		log.Fatalf("Nom inconnu pour WebSocket : %s", a.name)
-	}
+	wsURL = defineWSurl(a.name)
 
 	go ws.StartServer(wsURL, &a.doctorInfo, a.actions)
 	go a.receive()
@@ -89,7 +73,8 @@ func (a *App) run() {
 func main() {
 	/* Analyse les arguments de la ligne de commande,
 	crée l’application et lance son exécution.*/
+	totalSites := flag.Int("total", 3, "Nombre total de sites")
 	flag.Parse()
-	app := NewApp(*p_nom)
+	app := NewApp(*p_nom, *totalSites)
 	app.run()
 }
