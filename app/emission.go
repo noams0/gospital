@@ -8,9 +8,9 @@ import (
 
 func (a *App) waitingFoSending(destinator string) {
 	/*
-	waitingFoSending() envoie une demande de section critique (SC), 
-	attend l’accès à la SC, décrémente le compteur du médecin courant, met à jour les données, 
-	envoie les messages correspondants, puis libère la SC et notifie l’envoi.
+		waitingFoSending() envoie une demande de section critique (SC),
+		attend l’accès à la SC, décrémente le compteur du médecin courant, met à jour les données,
+		envoie les messages correspondants, puis libère la SC et notifie l’envoi.
 	*/
 	fmt.Print(utils.Msg_format("type", "demandeSC") + "\n")
 	a.waitingSC = true
@@ -28,8 +28,6 @@ func (a *App) waitingFoSending(destinator string) {
 	}
 	//msg = "send" + destinator
 
-	a.doctorInfo.ActivityLog = append([]string{"Envoie"}, a.doctorInfo.ActivityLog...)
-
 	msg := utils.Msg_format("type", "finSC") + utils.Msg_format("new_data", new_data)
 
 	fmt.Print(msg + "\n")
@@ -40,5 +38,7 @@ func (a *App) waitingFoSending(destinator string) {
 	msg = utils.Msg_format("type", "send") + utils.Msg_format("destinator", destinator)
 	utils.Display_w("action :", msg, a.name)
 	fmt.Print(msg + "\n")
+	a.doctorInfo.ActivityLog = append([]string{"Envoie"}, a.doctorInfo.ActivityLog...)
+
 	a.inSC = false
 }

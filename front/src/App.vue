@@ -23,7 +23,7 @@ onMounted(() => {
       doctorCountsSender.value = data.sender
       activityLog.value = data.activity_log || []
       snapshot.value = data.snapshot
-      console.log(snapshot.value)
+      console.log(data)
 
 
     } catch (err) {

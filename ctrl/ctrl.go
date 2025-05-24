@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-var N = 3
+var N = 5
 var pid = os.Getpid()
 var stderr = log.New(os.Stderr, "", 0)
 var p_nom *string = flag.String("n", "ecrivain", "nom")
@@ -27,8 +27,6 @@ func NewController(nomcourt, nom string) *Controller {
 	}
 }
 
-
-
 func (c *Controller) Msg_Horloge() string {
 	msg := utils.Msg_format("hlg", strconv.Itoa(c.Horloge))
 	c.VectorClock = utils.IncVC(c.VectorClock, c.NomCourt)
@@ -36,10 +34,9 @@ func (c *Controller) Msg_Horloge() string {
 	return msg
 }
 
-
 func main() {
 
-	/*Point d’entrée du programme : parse les arguments, 
+	/*Point d’entrée du programme : parse les arguments,
 	crée un Controller et lance la boucle de gestion des messages.*/
 
 	flag.Parse()

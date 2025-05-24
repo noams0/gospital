@@ -17,7 +17,7 @@ var p_nom *string = flag.String("n", "nom", "nom")
 var globalMutex = &sync.Mutex{}
 
 func (d *DoctorInfo) SendDoctorInfo() utils.DoctorPayload {
-	/*Retourne un objet contenant l’état courant du médecin 
+	/*Retourne un objet contenant l’état courant du médecin
 	(compteurs, logs, snapshot) pour l’envoi.*/
 	return utils.DoctorPayload{
 		Sender:       *p_nom,
@@ -36,6 +36,8 @@ func NewApp(name string) *App {
 				"app_1": 5,
 				"app_2": 3,
 				"app_3": 7,
+				"app_4": 5,
+				"app_5": 0,
 			},
 			//ActivityLog: []string{
 			//	"DemSC", "DebSC", "FinSC", "DemSC",
@@ -48,7 +50,7 @@ func NewApp(name string) *App {
 
 func (a *App) run() {
 	/*Lance WebSocket, démarre la réception des actions,
-	 puis traite les actions reçues*/
+	puis traite les actions reçues*/
 	var wsURL string
 	switch a.name {
 	case "app_1":
@@ -57,6 +59,10 @@ func (a *App) run() {
 		wsURL = ":8081"
 	case "app_3":
 		wsURL = ":8082"
+	case "app_4":
+		wsURL = ":8083"
+	case "app_5":
+		wsURL = ":8084"
 	default:
 		log.Fatalf("Nom inconnu pour WebSocket : %s", a.name)
 	}
@@ -80,9 +86,8 @@ func (a *App) run() {
 	}
 }
 
-
 func main() {
-	/* Analyse les arguments de la ligne de commande, 
+	/* Analyse les arguments de la ligne de commande,
 	crée l’application et lance son exécution.*/
 	flag.Parse()
 	app := NewApp(*p_nom)

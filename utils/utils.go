@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
-        "sort"
 )
 
 /*
@@ -83,11 +83,11 @@ func CloneVC(vc map[string]int) map[string]int {
 
 func EncodeVC(vc map[string]int) string {
 	var parts []string
-        keys := make([]string, 0, len(vc))
-        for k := range vc  {
-	   keys = append(keys, k)
-        }
-        sort.Strings(keys)
+	keys := make([]string, 0, len(vc))
+	for k := range vc {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 
 	for _, k := range keys {
 		parts = append(parts, k+"-"+strconv.Itoa(vc[k]))
@@ -115,31 +115,29 @@ func DecodeVC(s string) map[string]int {
 
 func InitVC(n int) map[string]int {
 	vc := make(map[string]int)
-        for i := 0; i<n; i++ {
-            vc["ctrl_"+strconv.Itoa(i+1)] = 0;
-        }     
-        return vc;
+	for i := 0; i < n; i++ {
+		vc["ctrl_"+strconv.Itoa(i+1)] = 0
+	}
+	return vc
 }
- 
+
 func IncVC(vc map[string]int, name string) map[string]int {
-     vc[name]++;
-     return vc;
+	vc[name]++
+	return vc
 }
 
 func MaxVC(vc1, vc2 map[string]int, name string) map[string]int {
 	vc := make(map[string]int)
 	for k, v := range vc1 {
-         if v>vc2[k] {
-            vc[k] = v
-         } else {
-            vc[k] = vc2[k]
-         }
-        }
-        vc[name]++;
-        return vc        
+		if v > vc2[k] {
+			vc[k] = v
+		} else {
+			vc[k] = vc2[k]
+		}
+	}
+	vc[name]++
+	return vc
 }
-
-
 
 /*
  FONCTIONS ANNEXES
@@ -161,6 +159,10 @@ func App_to_ctrl(app string) string {
 		return "ctrl_2"
 	case "app_3":
 		return "ctrl_3"
+	case "app_4":
+		return "ctrl_4"
+	case "app_5":
+		return "ctrl_5"
 	default:
 		return "ctrl"
 	}
@@ -178,23 +180,23 @@ func less(vc1 map[string]int, name1 string, vc2 map[string]int, name2 string) bo
 
 // Sauvegarde du snapshot
 func SaveSnapshot(name, snapshot string, horloge string) {
-  filename := "snapshot_"+name+".save"
-  content := "horloge: " + horloge + "\n"+snapshot
-  f, err := os.Create(filename)
-  if err != nil {
-     stderr.Println(err);
-     return
-  }
-  l, err := f.WriteString(content);
-  if err != nil {
-     stderr.Println(err);
-     f.Close()
-     return
-  }
-  err = f.Close();
-  if err != nil {
-     stderr.Println(err);
-     return
-  }
-  stderr.Printf("Saved %s : %d o\n", filename, l)
+	filename := "snapshot_" + name + ".save"
+	content := "horloge: " + horloge + "\n" + snapshot
+	f, err := os.Create(filename)
+	if err != nil {
+		stderr.Println(err)
+		return
+	}
+	l, err := f.WriteString(content)
+	if err != nil {
+		stderr.Println(err)
+		f.Close()
+		return
+	}
+	err = f.Close()
+	if err != nil {
+		stderr.Println(err)
+		return
+	}
+	stderr.Printf("Saved %s : %d o\n", filename, l)
 }
