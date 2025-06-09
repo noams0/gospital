@@ -29,6 +29,10 @@ func Display_f(where string, what string, nom string) {
 	stderr.Printf("%s * [%s] %-8.8s : %s\n%s", ColorPurple, nom, where, what, ColorReset)
 }
 
+func Display_n(where string, what string, nom string) {
+	stderr.Printf("%s * [%s] %-8.8s : %s\n%s", ColorCyan, nom, where, what, ColorReset)
+}
+
 /*
 FONCTIONS ENCODAGE ET DECODAGE DE MESSAGE
 */

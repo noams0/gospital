@@ -39,6 +39,7 @@ func main() {
 	/*Point d’entrée du programme : parse les arguments,
 	crée un Controller et lance la boucle de gestion des messages.*/
 	flag.Parse()
+
 	nom := *p_nom + "-" + strconv.Itoa(os.Getpid())
 	ctrl := NewController(*p_nom, nom, *totalSites)
 	ctrl.HandleMessage()

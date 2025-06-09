@@ -10,7 +10,7 @@ rm -f /tmp/in_* /tmp/out_*
 
 # Création des FIFO dynamiquement
 for i in $(seq 1 $total_sites); do
-  mkfifo /tmp/in_A$i /tmp/out_A$i /tmp/in_C$i /tmp/out_C$i
+  mkfifo /tmp/in_A$i /tmp/out_A$i /tmp/in_C$i /tmp/out_C$i /tmp/in_N$i /tmp/out_N$i
 done
 
 # Tableau des PIDs à surveiller pour cleanup
@@ -29,8 +29,10 @@ cleanup() {
 # Appel automatique de cleanup si interruption
 trap cleanup SIGINT SIGTERM EXIT
 
+
 # Lancement des apps et contrôleurs avec passage du nombre total
 for i in $(seq 1 $total_sites); do
+  go run net/net.go -n "net_$i" < /tmp/in_N$i > /tmp/out_N$i & pids+=($!)
   go run app/*.go -n "app_$i" -total $total_sites < /tmp/in_A$i > /tmp/out_A$i & pids+=($!)
   go run ctrl/*.go -n "ctrl_$i"  -total $total_sites  < /tmp/in_C$i > /tmp/out_C$i & pids+=($!)
 done
@@ -48,7 +50,8 @@ cd ..
 for i in $(seq 1 $total_sites); do
   next=$(( (i % total_sites) + 1 ))
   cat /tmp/out_A$i > /tmp/in_C$i & pids+=($!)
-  cat /tmp/out_C$i | tee /tmp/in_A$i > /tmp/in_C$next & pids+=($!)
+  cat /tmp/out_C$i | tee /tmp/in_A$i /tmp/in_N$i > /tmp/in_C$next & pids+=($!)
+  cat /tmp/out_N$i > /tmp/in_C$next & pids+=($!)
 done
 
 wait
