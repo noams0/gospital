@@ -1,14 +1,12 @@
 package main
 
 import (
-    "fmt"
-    "strconv"
-    "strings"
-    "gospital/utils"
+	"fmt"
+	"gospital/utils"
+	"strconv"
+	"strings"
 	"time"
 )
-
-
 
 func (c *Controller) HandleMessage() {
 	/*Boucle principale de réception et dispatch des messages*/
@@ -46,9 +44,9 @@ func (c *Controller) handleSnapshotMessage(msg string) {
 		return
 	}
 
-	if c.Snapshot.Couleur == Blanc { 
+	if c.Snapshot.Couleur == Blanc {
 		//on ne le traite que si on ne la pas déjà traité
-		fmt.Println("askForState")		
+		fmt.Println("askForState")
 		c.EnvoyerSurAnneau(SnapshotMsg, msg)
 	}
 
@@ -179,7 +177,8 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			//envoyer( [accusé] hi ) à Sj
 			utils.Display_f(string(Requete), rcvmsg, c.Nom)
 			utils.Display_f(string(Requete), fmt.Sprintf("mon tab %#v", c.Tab), c.Nom)
-			fmt.Println(rcvmsg)
+			msg := utils.StripNetFields(rcvmsg)
+			fmt.Println(msg)
 
 			fmt.Println(
 				utils.Msg_format("destinator", sender) +
@@ -216,7 +215,8 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			}
 			utils.Display_f("liberation", "Libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
 			utils.Display_f("liberation", fmt.Sprintf("mon tab %#v", c.Tab), c.Nom)
-			fmt.Println(rcvmsg)
+			msg := utils.StripNetFields(rcvmsg)
+			fmt.Println(msg)
 			//envoyer( [accusé] hi ) à Sj
 			if c.Tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
 				if isFirstRequest(c.Tab, c.Nom, c.Tab[c.Nom].Horloge) {
@@ -258,7 +258,8 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 				}
 			}
 		} else {
-			fmt.Println(rcvmsg)
+			msg := utils.StripNetFields(rcvmsg)
+			fmt.Println(msg)
 		}
 
 	case "send":
@@ -280,7 +281,8 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			fmt.Println("receive")
 		} else {
 			utils.Display_f("send", "send pas pour oim"+rcvmsg, c.Nom)
-			fmt.Println(rcvmsg)
+			msg := utils.StripNetFields(rcvmsg)
+			fmt.Println(msg)
 		}
 	case "snapshot":
 		stderr.Println("je recois un snapshot")
@@ -288,9 +290,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			c.SnapshotEnCours = true
 			c.DebutSnapshot()
 		}
-
 	case string(EtatMsg):
-
 		c.ReceptionMsgEtat(rcvmsg)
 	case string(PrePost):
 		c.ReceptionMsgPrepost(rcvmsg)
@@ -301,7 +301,8 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			utils.Display_e("main", "sender :"+utils.Findval(rcvmsg, "sender", c.Nom), c.Nom)
 			utils.Display_e("main", "sender :"+*p_nom+"-"+strconv.Itoa(pid), c.Nom)
 			utils.Display_d("main", "message msg reçu: "+sndmsg, c.Nom)
-			fmt.Println(rcvmsg)
+			msg := utils.StripNetFields(rcvmsg)
+			fmt.Println(msg)
 		}
 	}
 

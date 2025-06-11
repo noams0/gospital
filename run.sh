@@ -50,8 +50,8 @@ cd ..
 for i in $(seq 1 $total_sites); do
   next=$(( (i % total_sites) + 1 ))
   cat /tmp/out_A$i > /tmp/in_C$i & pids+=($!)
-  cat /tmp/out_C$i | tee /tmp/in_A$i /tmp/in_N$i > /tmp/in_C$next & pids+=($!)
-  cat /tmp/out_N$i > /tmp/in_C$next & pids+=($!)
+  cat /tmp/out_C$i | tee /tmp/in_A$i /tmp/in_N$i & pids+=($!)
+  cat /tmp/out_N$i | tee /tmp/in_C$i > /tmp/in_N$next & pids+=($!)
 done
 
 wait
