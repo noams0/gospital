@@ -32,7 +32,10 @@ trap cleanup SIGINT SIGTERM EXIT
 
 # Lancement des apps et contrôleurs avec passage du nombre total
 for i in $(seq 1 $total_sites); do
-  go run net/net.go -n "net_$i" < /tmp/in_N$i > /tmp/out_N$i & pids+=($!)
+  prev=$(( (i - 2 + total_sites) % total_sites + 1 ))
+  next=$(( (i % total_sites) + 1 ))
+  route="from=net_$prev:to=ctrl,from=ctrl:to=net_$next"
+  go run net/net.go -n "net_$i" --route="$route" < /tmp/in_N$i > /tmp/out_N$i & pids+=($!)
   go run app/*.go -n "app_$i" -total $total_sites < /tmp/in_A$i > /tmp/out_A$i & pids+=($!)
   go run ctrl/*.go -n "ctrl_$i"  -total $total_sites  < /tmp/in_C$i > /tmp/out_C$i & pids+=($!)
 done
