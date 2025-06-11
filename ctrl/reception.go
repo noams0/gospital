@@ -16,14 +16,20 @@ func (c *Controller) HandleMessage() {
 
 		time.Sleep(c.Speed * time.Millisecond) //temps d'attente du backend
 		utils.Display_d("main", "received : "+rcvmsg, c.Nom)
-		rcvmsg = utils.StripNetFields(rcvmsg)
-		/*MESSAGE DE L'APP*/
-		if c.IsFromApp(rcvmsg) {
-			c.handleAppMessage(rcvmsg)
-			/*MESSAGE DU CTRL*/
+		net := utils.Findval(rcvmsg, "net", c.Nom)
+		if net != "1" { //ON VERIFIE QUE CE N'EST PAS DU BRUIT DE NET
+			rcvmsg = utils.StripNetFields(rcvmsg)
+			/*MESSAGE DE L'APP*/
+			if c.IsFromApp(rcvmsg) {
+				c.handleAppMessage(rcvmsg)
+				/*MESSAGE DU CTRL*/
+			} else {
+				c.handleCtrlMessage(rcvmsg)
+			}
 		} else {
-			c.handleCtrlMessage(rcvmsg)
+			utils.Display_f("BRUIT", "BRUIT NET", c.Nom)
 		}
+
 	}
 }
 
