@@ -16,7 +16,7 @@ func (c *Controller) HandleMessage() {
 
 		time.Sleep(c.Speed * time.Millisecond) //temps d'attente du backend
 		utils.Display_d("main", "received : "+rcvmsg, c.Nom)
-
+		rcvmsg = utils.StripNetFields(rcvmsg)
 		/*MESSAGE DE L'APP*/
 		if c.IsFromApp(rcvmsg) {
 			c.handleAppMessage(rcvmsg)
@@ -177,8 +177,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			//envoyer( [accusé] hi ) à Sj
 			utils.Display_f(string(Requete), rcvmsg, c.Nom)
 			utils.Display_f(string(Requete), fmt.Sprintf("mon tab %#v", c.Tab), c.Nom)
-			msg := utils.StripNetFields(rcvmsg)
-			fmt.Println(msg)
+			fmt.Println(rcvmsg)
 
 			fmt.Println(
 				utils.Msg_format("destinator", sender) +
@@ -215,8 +214,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			}
 			utils.Display_f("liberation", "Libération reçue de "+sender+" | horloge="+strconv.Itoa(c.Horloge), c.Nom)
 			utils.Display_f("liberation", fmt.Sprintf("mon tab %#v", c.Tab), c.Nom)
-			msg := utils.StripNetFields(rcvmsg)
-			fmt.Println(msg)
+			fmt.Println(rcvmsg)
 			//envoyer( [accusé] hi ) à Sj
 			if c.Tab[c.Nom].TypeRequete == Requete && !c.IsInSection {
 				if isFirstRequest(c.Tab, c.Nom, c.Tab[c.Nom].Horloge) {
@@ -258,8 +256,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 				}
 			}
 		} else {
-			msg := utils.StripNetFields(rcvmsg)
-			fmt.Println(msg)
+			fmt.Println(rcvmsg)
 		}
 
 	case "send":
@@ -281,8 +278,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			fmt.Println("receive")
 		} else {
 			utils.Display_f("send", "send pas pour oim"+rcvmsg, c.Nom)
-			msg := utils.StripNetFields(rcvmsg)
-			fmt.Println(msg)
+			fmt.Println(rcvmsg)
 		}
 	case "snapshot":
 		stderr.Println("je recois un snapshot")
@@ -301,8 +297,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			utils.Display_e("main", "sender :"+utils.Findval(rcvmsg, "sender", c.Nom), c.Nom)
 			utils.Display_e("main", "sender :"+*p_nom+"-"+strconv.Itoa(pid), c.Nom)
 			utils.Display_d("main", "message msg reçu: "+sndmsg, c.Nom)
-			msg := utils.StripNetFields(rcvmsg)
-			fmt.Println(msg)
+			fmt.Println(rcvmsg)
 		}
 	}
 

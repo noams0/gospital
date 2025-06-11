@@ -1,10 +1,10 @@
 package main
 
 import (
-    "fmt"
-    "strconv"
-    "strings"
-    "gospital/utils"
+	"fmt"
+	"gospital/utils"
+	"strconv"
+	"strings"
 )
 
 func max(a, b int) int {
@@ -19,12 +19,10 @@ func TabToString(tab map[string]EtatReqSite) string {
 
 	for k, v := range tab {
 		result += fmt.Sprintf("%s : Horloge=%d (%s), Type=%s,", k, v.Horloge, strings.ReplaceAll(utils.EncodeVC(v.VectorClock), ",", " "), v.TypeRequete)
-		utils.Display_f("TEST", utils.EncodeVC(v.VectorClock), "XXX")
+		//utils.Display_f("TEST", utils.EncodeVC(v.VectorClock), "XXX")
 	}
 	return result
 }
-
-
 
 func isFirstRequest(tab map[string]EtatReqSite, me string, h int) bool {
 	for k, info := range tab {
@@ -42,7 +40,6 @@ func isFirstRequest(tab map[string]EtatReqSite, me string, h int) bool {
 	}
 	return true
 }
-
 
 func IsCtrlNumberLess(nom1, nom2 string) bool {
 	getCtrlNumber := func(nom string) int {
