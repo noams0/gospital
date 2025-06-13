@@ -19,6 +19,7 @@ func (c *Controller) HandleMessage() {
 		net := utils.Findval(rcvmsg, "net", c.Nom)
 		if net != "1" { //ON VERIFIE QUE CE N'EST PAS DU BRUIT DE NET
 			if utils.Findval(rcvmsg, "new_site", c.Nom) != "" {
+				c.NbSite++
 				if utils.ExtractIDt(c.NomCourt) != utils.Findval(rcvmsg, "new_site", c.Nom) {
 					msg := "new_site" + utils.Findval(rcvmsg, "new_site", c.Nom)
 					fmt.Println(msg)
