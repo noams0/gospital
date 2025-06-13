@@ -8,6 +8,11 @@ echo "Lancement avec $total_sites sites..."
 # Nettoyage des FIFO
 rm -f /tmp/in_* /tmp/out_*
 
+# Dossier pour stocker les successeurs
+mkdir -p /tmp/succ
+rm -f /tmp/succ/*
+
+
 # Création des FIFO dynamiquement
 for i in $(seq 1 $total_sites); do
   mkfifo /tmp/in_A$i /tmp/out_A$i /tmp/in_C$i /tmp/out_C$i /tmp/in_N$i /tmp/out_N$i
@@ -39,6 +44,9 @@ trap cleanup SIGINT SIGTERM EXIT
 for i in $(seq 1 $total_sites); do
   prev=$(( (i - 2 + total_sites) % total_sites + 1 ))
   next=$(( (i % total_sites) + 1 ))
+
+  echo "$next" > /tmp/succ/$i
+
   route="from=net_$prev:to=ctrl,from=ctrl:to=net_$next"
   go run net/net.go -n "net_$i" --route="$route" < /tmp/in_N$i > /tmp/out_N$i & pids+=($!)
   go run app/*.go -n "app_$i" -total $total_sites < /tmp/in_A$i > /tmp/out_A$i & pids+=($!)

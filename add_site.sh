@@ -12,34 +12,27 @@ fi
 
 pids=()
 
-cleanup() {
-  echo "Interruption : nettoyage..."
-  for pid in "${pids[@]}"; do
-    kill "$pid" 2>/dev/null
-  done
-#  kill $(cat /tmp/pidC$new_id) 2>/dev/null
-#  kill $(cat /tmp/pidA$new_id) 2>/dev/null
-#  kill $(cat /tmp/pidN$new_id) 2>/dev/null
-#  kill $(cat /tmp/pidN$new_id) 2>/dev/null
-#  kill $(cat /tmp/pidN$attach_to) 2>/dev/null
-  rm -f /tmp/in_A$new_id /tmp/out_A$new_id
-  rm -f /tmp/in_C$new_id /tmp/out_C$new_id
-  rm -f /tmp/in_N$new_id /tmp/out_N$new_id
-  rm -f /tmp/pidA$new_id /tmp/pidC$new_id /tmp/pidN$new_id
-  exit
-}
 
-trap cleanup SIGINT SIGTERM EXIT
+next_attach=$(cat /tmp/succ/$attach_to)
 
+echo "succ"
 
-next_attach=$(( (attach_to % total_sites) + 1 ))
+echo $next_attach
+
 
 echo "Ajout du site $new_id entre $attach_to et $next_attach (total = $total_sites)..."
+
+echo "$attach_to" > /tmp/succ/$new_id
 
 # Création des FIFO pour le nouveau site
 mkfifo /tmp/in_A$new_id /tmp/out_A$new_id
 mkfifo /tmp/in_C$new_id /tmp/out_C$new_id
 mkfifo /tmp/in_N$new_id /tmp/out_N$new_id
+
+# Lancement des processus Go pour le nouveau site
+go run app/*.go -n "app_$new_id" -total $total_sites < /tmp/in_A$new_id > /tmp/out_A$new_id & pids+=($!)
+
+go run ctrl/*.go -n "ctrl_$new_id" -total $total_sites < /tmp/in_C$new_id > /tmp/out_C$new_id & pids+=($!)
 
 
 # Kill l'ancien lien net_$attach_to -> net_$next_attach
@@ -48,10 +41,14 @@ kill $(cat /tmp/pidN$attach_to)
 sleep 1
 
 # Reconnecte net_$attach_to -> net_$new_id
-cat /tmp/out_N$attach_to | tee /tmp/in_C$attach_to /tmp/in_N$new_id > /tmp/in_N$next_attach & pids+=($!)
+cat /tmp/out_N$attach_to | tee /tmp/in_C$attach_to /tmp/in_N$new_id > /tmp/in_N$next_attach &
+echo $! > /tmp/pidN$attach_to
+
 
 # Connecte net_$new_id -> net_$attach_to
-cat /tmp/out_N$new_id | tee /tmp/in_C$new_id > /tmp/in_N$attach_to & pids+=($!)
+cat /tmp/out_N$new_id | tee /tmp/in_C$new_id > /tmp/in_N$attach_to &   echo $! > /tmp/pidN$new_id
+
+
 
 # Connexions internes : app -> ctrl -> net
 cat /tmp/out_A$new_id > /tmp/in_C$new_id & pids+=($!)
@@ -65,15 +62,31 @@ cd ..
 
 echo "Site $new_id ajouté et connecté."
 
-# Lancement des processus Go pour le nouveau site
-go run app/*.go -n "app_$new_id" -total $total_sites < /tmp/in_A$new_id > /tmp/out_A$new_id & pids+=($!)
-
-go run ctrl/*.go -n "ctrl_$new_id" -total $total_sites < /tmp/in_C$new_id > /tmp/out_C$new_id & pids+=($!)
-
 route="from=net_$attach_to:to=ctrl,from=ctrl:to=net_$attach_to"
 go run net/net.go -n "net_$new_id" --route="$route" < /tmp/in_N$new_id > /tmp/out_N$new_id  & pids+=($!)
 
 sleep 0.3  # légère attente pour la création effective
+
+cleanup() {
+  echo "Interruption : nettoyage..."
+  for pid in "${pids[@]}"; do
+    kill "$pid" 2>/dev/null
+  done
+  kill $(cat /tmp/pidN$new_id) 2>/dev/null
+  kill $(cat /tmp/pidN$attach_to) 2>/dev/null
+#  kill $(cat /tmp/pidC$new_id) 2>/dev/null
+#  kill $(cat /tmp/pidA$new_id) 2>/dev/null
+#  kill $(cat /tmp/pidN$new_id) 2>/dev/null
+#  kill $(cat /tmp/pidN$new_id) 2>/dev/null
+#  kill $(cat /tmp/pidN$attach_to) 2>/dev/null
+  rm -f /tmp/in_A$new_id /tmp/out_A$new_id
+  rm -f /tmp/in_C$new_id /tmp/out_C$new_id
+  rm -f /tmp/in_N$new_id /tmp/out_N$new_id
+  rm -f /tmp/pidA$new_id /tmp/pidC$new_id
+  exit
+}
+
+trap cleanup SIGINT SIGTERM EXIT
 
 
 wait
