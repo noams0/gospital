@@ -121,7 +121,7 @@ func (c *Controller) VerifierFinSnapshot() {
 	/*Vérifie si le snapshot est terminé et effectue la sauvegarde.*/
 
 	utils.Display_e("NB???", fmt.Sprintf("%d et %d", c.Snapshot.NbEtatAttendu, c.Snapshot.NbMessagePrepostAttendu), "ccc")
-	if c.Snapshot.NbEtatAttendu <= 0 && c.Snapshot.NbMessagePrepostAttendu <= 0 {
+	if c.Snapshot.NbEtatAttendu <= 1 && c.Snapshot.NbMessagePrepostAttendu <= 0 {
 		utils.Display_e("SNAPSHOT", "Snapshot terminé!", c.Nom)
 		utils.Display_e("SNAPSHOT", fmt.Sprintf("État global final: %#v", c.Snapshot.EtatGlobal), c.Nom)
 		etatBytes, _ := json.Marshal(c.Snapshot.EtatGlobal)

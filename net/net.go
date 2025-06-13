@@ -159,17 +159,39 @@ func (net *Net) run() {
 			sender := utils.Findval(rcvmsg, "net_sender", net.NomCourt)
 			var newRules []Rule
 			destinataire := ""
-			for _, r := range net.Rules {
-				if r.From == "ctrl" {
-					destinataire = r.To
-					// On remplace cette règle par ctrl -> sender
-					newRules = append(newRules, Rule{From: r.From, To: sender})
-					// Et on ajoute la nouvelle règle sender -> destinataire
-					newRules = append(newRules, Rule{From: sender, To: destinataire})
-				} else {
-					newRules = append(newRules, r)
+			if len(net.Rules) == 2 {
+				for _, r := range net.Rules {
+					if r.From == "ctrl" {
+						destinataire = r.To
+						// On remplace cette règle par ctrl -> sender
+						newRules = append(newRules, Rule{From: r.From, To: sender})
+						// Et on ajoute la nouvelle règle sender -> destinataire
+						newRules = append(newRules, Rule{From: sender, To: destinataire})
+					} else {
+						newRules = append(newRules, r)
+					}
+				}
+			} else {
+				if utils.Findval(rcvmsg, "type", net.NomCourt) == "append" {
+					for _, r := range net.Rules {
+						if r.From == "ctrl" {
+							destinataire = r.To
+							// On remplace par ctrl -> sender
+							newRules = append(newRules, Rule{From: "ctrl", To: sender})
+						} else {
+							newRules = append(newRules, r)
+						}
+					}
+
+					if destinataire != "" {
+						// Ajoute la chaîne sender -> oldTarget
+						newRules = append(newRules, Rule{From: sender, To: destinataire})
+					}
+
+					net.Rules = newRules
 				}
 			}
+
 			net.Rules = newRules
 			utils.Display_n("NET maj", fmt.Sprintf("%#v", net.Rules), net.NomCourt)
 			msg := utils.Msg_format("new_site", utils.ExtractIDt(sender)) +

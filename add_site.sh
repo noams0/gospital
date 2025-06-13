@@ -38,17 +38,23 @@ go run ctrl/*.go -n "ctrl_$new_id" -total $total_sites < /tmp/in_C$new_id > /tmp
 # Kill l'ancien lien net_$attach_to -> net_$next_attach
 echo "Reconfiguration de l’anneau entre net_$attach_to -> net_$next_attach"
 kill $(cat /tmp/pidN$attach_to)
-sleep 1
+sleep 0.5
 
+
+succs=$(cat /tmp/succ/$attach_to)
+for s in $succs; do
+  outputs+=" /tmp/in_N$s"
+done
+
+echo "succs" $outputs
 # Reconnecte net_$attach_to -> net_$new_id
-cat /tmp/out_N$attach_to | tee /tmp/in_C$attach_to /tmp/in_N$new_id > /tmp/in_N$next_attach &
+
+cat /tmp/out_N$attach_to | tee /tmp/in_C$attach_to /tmp/in_N$new_id  $outputs > /dev/null &
 echo $! > /tmp/pidN$attach_to
 
 
 # Connecte net_$new_id -> net_$attach_to
 cat /tmp/out_N$new_id | tee /tmp/in_C$new_id > /tmp/in_N$attach_to &   echo $! > /tmp/pidN$new_id
-
-
 
 # Connexions internes : app -> ctrl -> net
 cat /tmp/out_A$new_id > /tmp/in_C$new_id & pids+=($!)
@@ -60,6 +66,8 @@ cd front || exit
 VITE_SITE_ID=$((new_id - 1)) npm run dev & pids+=($!)
 cd ..
 
+
+echo "$new_id" >> "/tmp/succ/$attach_to"
 echo "Site $new_id ajouté et connecté."
 
 route="from=net_$attach_to:to=ctrl,from=ctrl:to=net_$attach_to"
