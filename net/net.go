@@ -171,12 +171,15 @@ func (net *Net) run() {
 				}
 			}
 			net.Rules = newRules
-			utils.Display_n("NET", fmt.Sprintf("%#v", net.Rules), net.NomCourt)
+			utils.Display_n("NET maj", fmt.Sprintf("%#v", net.Rules), net.NomCourt)
 			msg := utils.Msg_format("new_site", utils.ExtractIDt(sender)) +
 				utils.Msg_format("net", "1") +
 				utils.Msg_format("msg", "1") +
 				utils.Msg_format("net_destinator", destinataire) +
 				utils.Msg_format("net_sender", net.NomCourt)
+			utils.Display_n("NET", "HERE je vais envoyer :", net.NomCourt)
+			utils.Display_n("NET", msg, net.NomCourt)
+			fmt.Println("\n")
 			fmt.Println(msg)
 			continue
 		}
@@ -213,7 +216,6 @@ func (net *Net) run() {
 		}
 		utils.Display_n("NET", "HERE je vais envoyer :", net.NomCourt)
 		utils.Display_n("NET", msg, net.NomCourt)
-
 		fmt.Println(msg)
 	}
 
