@@ -69,12 +69,31 @@ func (c *Net) FromNetForCtrl(rcvmsg string) bool {
 	return false
 }
 
+//func (c *Net) IsNotForMe(rcvmsg string) bool {
+//	net := utils.Findval(rcvmsg, "net", c.Nom)
+//	if net == "0" {
+//		return true
+//	}
+//	return false
+//}
+
+// A VERIFIER
 func (c *Net) IsNotForMe(rcvmsg string) bool {
 	net := utils.Findval(rcvmsg, "net", c.Nom)
-	if net == "0" {
+	if net == "0" { // msg d'un autre net pour son ctrl
+
 		return true
+	} else {
+		destinator := utils.Findval(rcvmsg, "net_destinator", c.Nom)
+		ctrl := utils.Findval(rcvmsg, "msg", c.Nom)
+		if net == "" && destinator == "" && ctrl != "" { //si pas de destinataire et que msg n'est pas vide, ça vient de ctrl qui veut transmettre message sur anneau
+			return false
+		}
+		if net == "1" && destinator == c.NomCourt { // Si ça vient de net et que je suis le destinataire
+			return false
+		}
 	}
-	return false
+	return true
 }
 
 func (c *Net) FromNetForNet(rcvmsg string) bool {
@@ -108,7 +127,17 @@ func main() {
 	net := NewNet(*p_nom, nom, *totalSites, rules)
 
 	utils.Display_n("NET", fmt.Sprintf("%#v", net.Rules), net.NomCourt)
-
+	if len(rules) == 2 &&
+		rules[0].From == rules[1].To &&
+		rules[0].To == rules[1].From {
+		dest := rules[1].To
+		msg := utils.Msg_format("type", "append") +
+			utils.Msg_format("net", "1") +
+			utils.Msg_format("net_destinator", dest) +
+			utils.Msg_format("net_sender", net.NomCourt)
+		fmt.Println(msg)
+		utils.Display_n("NET", "NOUVELLEMENT AJOUTÉ DYNAMIQUEMENT", net.NomCourt)
+	}
 	net.run()
 
 }
@@ -123,6 +152,32 @@ func (net *Net) run() {
 		// Si pas concerné
 		if net.IsNotForMe(rcvmsg) {
 			utils.Display_n("NET, NON", "not for me", net.NomCourt)
+			continue
+		}
+
+		if utils.Findval(rcvmsg, "type", net.NomCourt) == "append" {
+			sender := utils.Findval(rcvmsg, "net_sender", net.NomCourt)
+			var newRules []Rule
+			destinataire := ""
+			for _, r := range net.Rules {
+				if r.From == "ctrl" {
+					destinataire = r.To
+					// On remplace cette règle par ctrl -> sender
+					newRules = append(newRules, Rule{From: r.From, To: sender})
+					// Et on ajoute la nouvelle règle sender -> destinataire
+					newRules = append(newRules, Rule{From: sender, To: destinataire})
+				} else {
+					newRules = append(newRules, r)
+				}
+			}
+			net.Rules = newRules
+			utils.Display_n("NET", fmt.Sprintf("%#v", net.Rules), net.NomCourt)
+			msg := utils.Msg_format("new_site", utils.ExtractIDt(sender)) +
+				utils.Msg_format("net", "1") +
+				utils.Msg_format("msg", "1") +
+				utils.Msg_format("net_destinator", destinataire) +
+				utils.Msg_format("net_sender", net.NomCourt)
+			fmt.Println(msg)
 			continue
 		}
 
@@ -149,11 +204,15 @@ func (net *Net) run() {
 		if dest == "ctrl" {
 			msg += utils.Msg_format("net", "0")
 		} else if strings.HasPrefix(dest, "net_") {
+			utils.Display_n("NET", "HERE dest :", net.NomCourt)
+			utils.Display_n("NET", dest, net.NomCourt)
 			msg += utils.Msg_format("net", "1") + utils.Msg_format("net_destinator", dest) + utils.Msg_format("net_sender", net.NomCourt)
 		} else {
 			utils.Display_n("NET, NON", "destinataire inconnu", net.NomCourt)
 			continue
 		}
+		utils.Display_n("NET", "HERE je vais envoyer :", net.NomCourt)
+		utils.Display_n("NET", msg, net.NomCourt)
 
 		fmt.Println(msg)
 	}

@@ -19,6 +19,11 @@ pids=()
 # Fonction de nettoyage à la fermeture
 cleanup() {
   echo "Arrêt des processus..."
+  for i in $(seq 1 $total_sites); do
+    kill $(cat /tmp/pidA$i) 2>/dev/null
+    kill $(cat /tmp/pidC$i) 2>/dev/null
+    kill $(cat /tmp/pidN$i) 2>/dev/null
+  done
   for pid in "${pids[@]}"; do
     kill "$pid" 2>/dev/null
   done
@@ -52,9 +57,16 @@ cd ..
 # Connexion des flux en anneau unidirectionnel
 for i in $(seq 1 $total_sites); do
   next=$(( (i % total_sites) + 1 ))
-  cat /tmp/out_A$i > /tmp/in_C$i & pids+=($!)
-  cat /tmp/out_C$i | tee /tmp/in_A$i > /tmp/in_N$i & pids+=($!)
-  cat /tmp/out_N$i | tee /tmp/in_C$i > /tmp/in_N$next & pids+=($!)
+
+  cat /tmp/out_A$i > /tmp/in_C$i &
+  echo $! > /tmp/pidA$i
+
+  cat /tmp/out_C$i | tee /tmp/in_A$i > /tmp/in_N$i &
+  echo $! > /tmp/pidC$i
+
+  cat /tmp/out_N$i | tee /tmp/in_C$i > /tmp/in_N$next &
+  echo $! > /tmp/pidN$i
 done
+
 
 wait

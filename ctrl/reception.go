@@ -18,13 +18,23 @@ func (c *Controller) HandleMessage() {
 		utils.Display_d("main", "received : "+rcvmsg, c.Nom)
 		net := utils.Findval(rcvmsg, "net", c.Nom)
 		if net != "1" { //ON VERIFIE QUE CE N'EST PAS DU BRUIT DE NET
-			rcvmsg = utils.StripNetFields(rcvmsg)
-			/*MESSAGE DE L'APP*/
-			if c.IsFromApp(rcvmsg) {
-				c.handleAppMessage(rcvmsg)
-				/*MESSAGE DU CTRL*/
+			if utils.Findval(rcvmsg, "new_site", c.Nom) != "" {
+				if utils.ExtractIDt(c.NomCourt) != utils.Findval(rcvmsg, "new_site", c.Nom) {
+					msg := "new_site" + utils.Findval(rcvmsg, "new_site", c.Nom)
+					fmt.Println(msg)
+					rcvmsg = utils.StripNetFields(rcvmsg)
+					fmt.Println(rcvmsg)
+				}
 			} else {
-				c.handleCtrlMessage(rcvmsg)
+
+				/*MESSAGE DE L'APP*/
+				rcvmsg = utils.StripNetFields(rcvmsg)
+				if c.IsFromApp(rcvmsg) {
+					c.handleAppMessage(rcvmsg)
+					/*MESSAGE DU CTRL*/
+				} else {
+					c.handleCtrlMessage(rcvmsg)
+				}
 			}
 		} else {
 			utils.Display_f("BRUIT", "BRUIT NET", c.Nom)
