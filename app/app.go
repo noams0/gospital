@@ -61,6 +61,8 @@ func (a *App) run() {
 			go a.waitingFoSending(destinator)
 		} else if action["type"] == "snapshot" {
 			go a.snapshot()
+		} else if action["type"] == "askToLeave" {
+			go a.leave()
 		} else if action["type"] == "speed" {
 			delayStr, ok := action["delay"].(string)
 			if ok {

@@ -75,6 +75,15 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 	utils.Display_d("main", "TYPE de la demande en provenance de l'app : "+type_msg, c.Nom)
 
 	switch type_msg {
+	case "askToLeave":
+		fmt.Println("leave" + utils.Findval(rcvmsg, "sender", c.Nom))
+		msg := utils.Msg_format("type", "askToLeave") +
+			utils.Msg_format("sender", utils.Findval(rcvmsg, "sender", c.Nom)) +
+			utils.Msg_format("msg", "1") +
+			utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
+			c.Msg_Horloge()
+		fmt.Println(msg)
+
 	case "speed":
 		delay := utils.Findval(rcvmsg, "delay", c.Nom)
 		delayInt, _ := strconv.Atoi(delay)
@@ -181,6 +190,17 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 
 	msg_type := utils.Findval(rcvmsg, "type", c.Nom)
 	switch msg_type {
+	case "askToLeave":
+		if utils.App_to_ctrl(sender) != c.NomCourt {
+			fmt.Println("leave" + utils.Findval(rcvmsg, "sender", c.Nom))
+			msg := utils.Msg_format("type", "askToLeave") +
+				utils.Msg_format("sender", utils.Findval(rcvmsg, "sender", c.Nom)) +
+				utils.Msg_format("msg", "1") +
+				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
+				c.Msg_Horloge()
+			fmt.Println(msg)
+		}
+
 	case "new_data":
 		utils.Display_f("NOT", "for me", c.Nom)
 	case string(Requete):

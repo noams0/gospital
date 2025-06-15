@@ -10,8 +10,19 @@ if [ -z "$new_id" ] || [ -z "$attach_to" ] || [ -z "$total_sites" ]; then
   exit 1
 fi
 
-pids=()
+lockfile="/tmp/lock_$attach_to"
 
+# Attente jusqu'à ce que le verrou soit libre
+while [ -e "$lockfile" ]; do
+  echo "🔒 En attente que $attach_to soit disponible..."
+  sleep 0.1
+done
+
+# Création du verrou
+touch "$lockfile"
+sleep 1  # légère attente pour la création effective
+
+pids=()
 
 next_attach=$(cat /tmp/succ/$attach_to)
 
@@ -75,6 +86,8 @@ go run net/net.go -n "net_$new_id" --route="$route" < /tmp/in_N$new_id > /tmp/ou
 
 sleep 0.3  # légère attente pour la création effective
 
+rm -f "$lockfile"
+
 cleanup() {
   echo "Interruption : nettoyage..."
   for pid in "${pids[@]}"; do
@@ -91,6 +104,7 @@ cleanup() {
   rm -f /tmp/in_C$new_id /tmp/out_C$new_id
   rm -f /tmp/in_N$new_id /tmp/out_N$new_id
   rm -f /tmp/pidA$new_id /tmp/pidC$new_id
+  rm -f "$lockfile"
   exit
 }
 

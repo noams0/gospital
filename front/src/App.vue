@@ -48,6 +48,7 @@ onMounted(() => {
     console.warn('WebSocket fermée')
   }
 })
+
 const doctorCountsSender = ref("")
 const activityLog = ref("")
 const snapshot = ref("")
@@ -128,6 +129,13 @@ function demanderSnapshot() {
   socket.send(JSON.stringify(message))
 }
 
+function askToLeave() {
+  const message = {
+    type: "askToLeave"
+  }
+  socket.send(JSON.stringify(message))
+}
+
 const speed = ref(50)
 
 function changerVitesse() {
@@ -163,6 +171,11 @@ onUnmounted(() => {
   <button @click="demanderSnapshot" style="margin-bottom: 20px">
     🔄 Déclencher une sauvegarde instantanée
   </button>
+  <br>
+
+  <button @click="askToLeave" style="margin-bottom: 20px">
+    BYE Quitter le réseau
+  </button>
   <div class="hospital-container">
     <div class="hospital" v-for="(count, site) in doctorCounts" :key="site">
       <h2>{{ site }}</h2>
@@ -187,7 +200,6 @@ onUnmounted(() => {
       </div>
       <p >{{ val }} médecin(s)</p>
   </div>
-
 </div>
   <div class="activity-log">
     <h3>Journal des activités</h3>
@@ -203,7 +215,7 @@ onUnmounted(() => {
 
 
 
-  <!--    <div class="snapshot-site" v-for="(etat, site) in snapshotParsed" :key="site">-->
+<!--    <div class="snapshot-site" v-for="(etat, site) in snapshotParsed" :key="site">-->
 <!--      <h4>{{ site }}</h4>-->
 <!--      <ul>-->
 <!--        <li><strong>Horloge :</strong> {{ etat.Horloge }}</li>-->

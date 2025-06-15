@@ -154,7 +154,6 @@ func (net *Net) run() {
 			utils.Display_n("NET, NON", "not for me", net.NomCourt)
 			continue
 		}
-
 		if utils.Findval(rcvmsg, "type", net.NomCourt) == "append" {
 			sender := utils.Findval(rcvmsg, "net_sender", net.NomCourt)
 			var newRules []Rule
@@ -182,7 +181,6 @@ func (net *Net) run() {
 							newRules = append(newRules, r)
 						}
 					}
-
 					if destinataire != "" {
 						// Ajoute la chaîne sender -> oldTarget
 						newRules = append(newRules, Rule{From: sender, To: destinataire})

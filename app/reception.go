@@ -57,6 +57,11 @@ func (a *App) receive() {
 			msg = utils.Msg_format("type", "yourState") + utils.Msg_format("etat_local", str_yrstate)
 			fmt.Println(msg)
 
+		} else if strings.HasPrefix(msg, "leave") {
+			leave_site_id := strings.TrimPrefix(msg, "leave")
+			utils.Display_e("app", "leave "+leave_site_id, a.name)
+			delete(a.doctorInfo.DoctorsCount, leave_site_id)
+
 		} else if strings.HasPrefix(msg, "new_site") {
 			new_site_id := strings.TrimPrefix(msg, "new_site")
 			a.doctorInfo.DoctorsCount["app_"+new_site_id] = 5
