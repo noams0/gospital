@@ -1,8 +1,10 @@
 package main
 
+import "C"
 import (
 	"fmt"
 	"gospital/utils"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -75,6 +77,16 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 	utils.Display_d("main", "TYPE de la demande en provenance de l'app : "+type_msg, c.Nom)
 
 	switch type_msg {
+	case "askToQuit":
+		utils.Display_e("here", "here", "here")
+		msg := utils.Msg_format("type", "askToQuit") +
+			utils.Msg_format("sender", utils.Findval(rcvmsg, "sender", c.Nom)) +
+			utils.Msg_format("pid_app", utils.Findval(rcvmsg, "pid_app", c.Nom)) +
+			utils.Msg_format("pid_ctrl", strconv.Itoa(os.Getpid())) +
+			utils.Msg_format("msg", "1") +
+			utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
+			c.Msg_Horloge()
+		fmt.Println(msg)
 	case "askToLeave":
 		fmt.Println("leave" + utils.Findval(rcvmsg, "sender", c.Nom))
 		msg := utils.Msg_format("type", "askToLeave") +
@@ -192,6 +204,15 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 	switch msg_type {
 	case "askToLeave":
 		if utils.App_to_ctrl(sender) != c.NomCourt {
+			//utils.Display_f(string(Requete), fmt.Sprintf("mon tab %#v", c.Tab), c.Nom)
+			app_sender := utils.App_to_ctrl(utils.Findval(rcvmsg, "sender", c.Nom))
+			for key := range c.Tab {
+				if strings.HasPrefix(key, app_sender) {
+					delete(c.Tab, key)
+				}
+			}
+			c.NbSite--
+			//utils.Display_f(string(Requete), fmt.Sprintf("mon tab %#v", c.Tab), c.Nom)
 			fmt.Println("leave" + utils.Findval(rcvmsg, "sender", c.Nom))
 			msg := utils.Msg_format("type", "askToLeave") +
 				utils.Msg_format("sender", utils.Findval(rcvmsg, "sender", c.Nom)) +

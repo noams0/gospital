@@ -136,6 +136,14 @@ function askToLeave() {
   socket.send(JSON.stringify(message))
 }
 
+function askToQuit() {
+  const message = {
+    type: "askToQuit"
+  }
+  socket.send(JSON.stringify(message))
+}
+
+
 const speed = ref(50)
 
 function changerVitesse() {
@@ -175,6 +183,10 @@ onUnmounted(() => {
 
   <button @click="askToLeave" style="margin-bottom: 20px">
     BYE Quitter le réseau
+  </button>
+
+  <button @click="askToQuit" style="margin-bottom: 20px">
+    BYE BYE Quitter physiquement le réseau
   </button>
   <div class="hospital-container">
     <div class="hospital" v-for="(count, site) in doctorCounts" :key="site">

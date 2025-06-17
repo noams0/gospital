@@ -20,7 +20,7 @@ done
 
 # Création du verrou
 touch "$lockfile"
-sleep 1  # légère attente pour la création effective
+sleep 1 # légère attente pour la création effective
 
 pids=()
 

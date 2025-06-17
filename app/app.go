@@ -63,6 +63,8 @@ func (a *App) run() {
 			go a.snapshot()
 		} else if action["type"] == "askToLeave" {
 			go a.leave()
+		} else if action["type"] == "askToQuit" {
+			go a.quit(pid)
 		} else if action["type"] == "speed" {
 			delayStr, ok := action["delay"].(string)
 			if ok {
