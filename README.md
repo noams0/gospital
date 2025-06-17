@@ -1,5 +1,41 @@
 # Projet SR05 - programmation d'une application répartie
 
+## V2 - Comment utiliser l'application 
+
+Pour démarrer un réseau logique de base avec n sites connectés en anneau : 
+
+### Initier le réseau
+
+```bash
+./run.sh n
+```
+Exemple :
+```bash
+./run.sh 3
+```
+
+### Ajouter dynamiquement un site
+
+Pour ajouter un nouveau site i derrière un site existant j dans le réseau :
+```bash
+./add_site.sh i j total_sites
+```
+
+Pour construire un réseau arborescent à partir de l'exemple:
+
+```bash
+./add_site.sh 4 3 4
+./add_site.sh 5 3 5
+./add_site.sh 6 2 6
+./add_site.sh 7 4 7
+```
+## Pour le départ d'un membre
+
+ça s'effectue depuis le front avec un bouton "Bye, quitter le réseau"
+
+
+
+# Ancien (V1)
 ## Prérequis
 
 On utilise le stack technique :
