@@ -44,8 +44,6 @@ type Net struct {
 	Speed    time.Duration
 	NbSite   int
 	Rules    []Rule
-	asking   bool
-	asker    int
 }
 
 func NewNet(nomcourt, nom string, nb_site int, rules []Rule) *Net {
@@ -55,7 +53,6 @@ func NewNet(nomcourt, nom string, nb_site int, rules []Rule) *Net {
 		NomCourt: nomcourt,
 		NbSite:   nb_site,
 		Rules:    rules,
-		asking:   false,
 	}
 }
 
@@ -185,89 +182,6 @@ func updateRulesOnLeavePred(rules []Rule, leaver string, new_pred string) []Rule
 	return newRules
 }
 
-func (net *Net) accept_site(rcvmsg string) {
-	asker := strconv.Itoa(net.asker)
-	sender := "net_" + asker
-	net.asking = false
-	var newRules []Rule
-	destinataire := ""
-	if len(net.Rules) == 2 {
-		for _, r := range net.Rules {
-			if r.From == "ctrl" {
-				destinataire = r.To
-				// On remplace cette règle par ctrl -> sender
-				newRules = append(newRules, Rule{From: r.From, To: sender})
-				// Et on ajoute la nouvelle règle sender -> destinataire
-				newRules = append(newRules, Rule{From: sender, To: destinataire})
-			} else {
-				newRules = append(newRules, r)
-			}
-		}
-	} else {
-		if utils.Findval(rcvmsg, "type", net.NomCourt) == "append" {
-			for _, r := range net.Rules {
-				if r.From == "ctrl" {
-					destinataire = r.To
-					// On remplace par ctrl -> sender
-					newRules = append(newRules, Rule{From: "ctrl", To: sender})
-				} else {
-					newRules = append(newRules, r)
-				}
-			}
-			if destinataire != "" {
-				// Ajoute la chaîne sender -> oldTarget
-				newRules = append(newRules, Rule{From: sender, To: destinataire})
-			}
-			net.Rules = newRules
-		}
-	}
-	net.Rules = newRules
-	utils.Display_n("NET maj", fmt.Sprintf("%#v", net.Rules), net.NomCourt)
-
-	msg := utils.Msg_format("new_site", utils.ExtractIDt(sender)) +
-		utils.Msg_format("net", "1") +
-		utils.Msg_format("msg", "1") +
-		utils.Msg_format("net_destinator", destinataire) +
-		utils.Msg_format("net_sender", net.NomCourt)
-	utils.Display_n("NET", "HERE je vais envoyer :", net.NomCourt)
-	utils.Display_n("NET", msg, net.NomCourt)
-	fmt.Println("\n")
-	fmt.Println(msg)
-	msg = utils.Msg_format("site_accepted", utils.ExtractIDt(sender)) +
-		utils.Msg_format("net", "1") +
-		utils.Msg_format("msg", "1") +
-		utils.Msg_format("net_destinator", sender) +
-		utils.Msg_format("net_sender", net.NomCourt)
-	utils.Display_n("NET", "HERE je vais envoyer :", net.NomCourt)
-	utils.Display_n("NET", msg, net.NomCourt)
-	fmt.Println("\n")
-	fmt.Println(msg)
-
-}
-
-func (net *Net) askToJoin(rcvmsg string) {
-	utils.Display_n("NET", "here", net.NomCourt)
-
-	sender := utils.Findval(rcvmsg, "net_sender", net.NomCourt)
-	dest := ""
-	for _, r := range net.Rules {
-		if r.From == "ctrl" {
-			dest = r.To
-		}
-	}
-	msg := utils.Msg_format("type", "askToJoin") +
-		utils.Msg_format("asker", utils.ExtractIDt(sender)) +
-		utils.Msg_format("net", "1") +
-		utils.Msg_format("net_destinator", dest) +
-		utils.Msg_format("net_sender", net.NomCourt)
-	utils.Display_n("NET", "HERE je vais envoyer :", net.NomCourt)
-	utils.Display_n("NET", msg, net.NomCourt)
-	fmt.Println("\n")
-	fmt.Println(msg)
-	net.asking = true
-	net.asker, _ = strconv.Atoi(utils.ExtractIDt(sender))
-}
-
 func main() {
 	flag.Parse()
 
@@ -285,16 +199,6 @@ func main() {
 			utils.Msg_format("net_destinator", dest) +
 			utils.Msg_format("net_sender", net.NomCourt)
 		fmt.Println(msg)
-		scanner := bufio.NewScanner(os.Stdin)
-	loop:
-		for scanner.Scan() {
-			rcvmsg := scanner.Text()
-			if utils.Findval(rcvmsg, "type", net.NomCourt) == "site_accepted" {
-				utils.Display_n("NET", "NBREAK LOOP	", net.NomCourt)
-				break loop
-			}
-			utils.Display_n("NET", "WAITING", net.NomCourt)
-		}
 		utils.Display_n("NET", "NOUVELLEMENT AJOUTÉ DYNAMIQUEMENT", net.NomCourt)
 	}
 	net.run()
@@ -313,54 +217,6 @@ func (net *Net) run() {
 			utils.Display_n("NET, NON", "not for me", net.NomCourt)
 			continue
 		}
-		if utils.Findval(rcvmsg, "type", net.NomCourt) == "askToJoin" {
-			utils.Display_n("NET, YES", "askToJoin", net.NomCourt)
-			sender := utils.Findval(rcvmsg, "net_sender", net.NomCourt)
-			dest := ""
-			for _, rule := range net.Rules {
-				if rule.From == sender {
-					dest = rule.To
-					break
-				}
-			}
-			if dest == "ctrl" {
-				for _, rule := range net.Rules {
-					if rule.From == "ctrl" {
-						dest = rule.To
-						break
-					}
-				}
-			}
-			if net.asking {
-				asker := utils.Findval(rcvmsg, "asker", net.NomCourt)
-				asker_int, _ := strconv.Atoi(asker)
-				if asker_int == net.asker { //LE MESSAGE A FAIT UN TOUR COMPLET SANS Ê ARRETÉ
-					net.accept_site(rcvmsg)
-					return
-				} else {
-					if asker_int > net.asker {
-						rcvmsg = utils.StripNetFields(rcvmsg)
-						msg := rcvmsg +
-							utils.Msg_format("net", "1") +
-							utils.Msg_format("net_destinator", dest) +
-							utils.Msg_format("net_sender", net.NomCourt)
-						fmt.Println(msg)
-
-					} else {
-						utils.Display_n("NET", "BLOQUE", net.NomCourt)
-					}
-				}
-			} else {
-				rcvmsg = utils.StripNetFields(rcvmsg)
-				msg := rcvmsg +
-					utils.Msg_format("net", "1") +
-					utils.Msg_format("net_destinator", dest) +
-					utils.Msg_format("net_sender", net.NomCourt)
-				fmt.Println(msg)
-			}
-			continue
-		}
-
 		if utils.Findval(rcvmsg, "type", net.NomCourt) == "askToQuit" {
 			if net.IsLeaf() {
 				utils.Display_n("NET", "leaf", net.NomCourt)
@@ -441,7 +297,52 @@ func (net *Net) run() {
 			utils.Display_n("NET maj", fmt.Sprintf("%#v", net.Rules), net.NomCourt)
 		}
 		if utils.Findval(rcvmsg, "type", net.NomCourt) == "append" {
-			go net.askToJoin(rcvmsg)
+			sender := utils.Findval(rcvmsg, "net_sender", net.NomCourt)
+			var newRules []Rule
+			destinataire := ""
+			if len(net.Rules) == 2 {
+				for _, r := range net.Rules {
+					if r.From == "ctrl" {
+						destinataire = r.To
+						// On remplace cette règle par ctrl -> sender
+						newRules = append(newRules, Rule{From: r.From, To: sender})
+						// Et on ajoute la nouvelle règle sender -> destinataire
+						newRules = append(newRules, Rule{From: sender, To: destinataire})
+					} else {
+						newRules = append(newRules, r)
+					}
+				}
+			} else {
+				if utils.Findval(rcvmsg, "type", net.NomCourt) == "append" {
+					for _, r := range net.Rules {
+						if r.From == "ctrl" {
+							destinataire = r.To
+							// On remplace par ctrl -> sender
+							newRules = append(newRules, Rule{From: "ctrl", To: sender})
+						} else {
+							newRules = append(newRules, r)
+						}
+					}
+					if destinataire != "" {
+						// Ajoute la chaîne sender -> oldTarget
+						newRules = append(newRules, Rule{From: sender, To: destinataire})
+					}
+
+					net.Rules = newRules
+				}
+			}
+
+			net.Rules = newRules
+			utils.Display_n("NET maj", fmt.Sprintf("%#v", net.Rules), net.NomCourt)
+			msg := utils.Msg_format("new_site", utils.ExtractIDt(sender)) +
+				utils.Msg_format("net", "1") +
+				utils.Msg_format("msg", "1") +
+				utils.Msg_format("net_destinator", destinataire) +
+				utils.Msg_format("net_sender", net.NomCourt)
+			utils.Display_n("NET", "HERE je vais envoyer :", net.NomCourt)
+			utils.Display_n("NET", msg, net.NomCourt)
+			fmt.Println("\n")
+			fmt.Println(msg)
 			continue
 		}
 
