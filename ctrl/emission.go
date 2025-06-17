@@ -1,11 +1,11 @@
 package main
 
 import (
-    "fmt"
-    "strconv"
-    "encoding/json"
-    "log"
-    "gospital/utils"
+	"encoding/json"
+	"fmt"
+	"gospital/utils"
+	"log"
+	"strconv"
 )
 
 func (c *Controller) ForwardToApp(message string) {
@@ -24,8 +24,6 @@ func (c *Controller) ForwardToApp(message string) {
 	// Envoyer directement sur l'anneau
 	c.EnvoyerSurAnneau(AppMsg, ctrlMsg)
 }
-
-
 
 func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) {
 
@@ -85,4 +83,3 @@ func (c *Controller) EnvoyerSurAnneau(msgType MessageType, content interface{}) 
 		fmt.Println(msg)
 	}
 }
-

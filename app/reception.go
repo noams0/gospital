@@ -1,6 +1,6 @@
-package main 
+package main
 
-import(
+import (
 	"bufio"
 	"fmt"
 	"gospital/utils"
@@ -12,8 +12,8 @@ import(
 
 func (a *App) waitingFoReceivng() {
 
-	/*Gère la réception d’une demande de section critique (SC), attend l’accès, 
-	incrémente le compteur du médecin courant, met à jour les données et le journal d’activité, 
+	/*Gère la réception d’une demande de section critique (SC), attend l’accès,
+	incrémente le compteur du médecin courant, met à jour les données et le journal d’activité,
 	puis notifie la fin de la SC.*/
 
 	a.doctorInfo.ActivityLog = append([]string{"Receive"}, a.doctorInfo.ActivityLog...)
@@ -37,13 +37,12 @@ func (a *App) waitingFoReceivng() {
 
 }
 
-
 func (a *App) receive() {
 
-	/*Lit les messages depuis l’entrée standard, 
+	/*Lit les messages depuis l’entrée standard,
 	traite différents types de commandes (réception, état, snapshot, requêtes, début de SC, mise à jour des compteurs),
 	met à jour l’état de l’application et le journal d’activité selon le message reçu.*/
-	
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		msg := scanner.Text()
@@ -57,6 +56,15 @@ func (a *App) receive() {
 			stderr.Println(str_yrstate)
 			msg = utils.Msg_format("type", "yourState") + utils.Msg_format("etat_local", str_yrstate)
 			fmt.Println(msg)
+
+		} else if strings.HasPrefix(msg, "leave") {
+			leave_site_id := strings.TrimPrefix(msg, "leave")
+			utils.Display_e("app", "leave "+leave_site_id, a.name)
+			delete(a.doctorInfo.DoctorsCount, leave_site_id)
+
+		} else if strings.HasPrefix(msg, "new_site") {
+			new_site_id := strings.TrimPrefix(msg, "new_site")
+			a.doctorInfo.DoctorsCount["app_"+new_site_id] = 5
 
 		} else if strings.HasPrefix(msg, "endSnapshot") {
 			snapshotData := strings.TrimPrefix(msg, "endSnapshot")

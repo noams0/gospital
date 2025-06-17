@@ -68,6 +68,34 @@ func Findval(msg string, key string, nom string) string {
 	return ""
 }
 
+func ExtractIDt(netName string) string {
+	parts := strings.Split(netName, "_")
+	if len(parts) != 2 {
+		return "0"
+	}
+	return parts[1]
+}
+
+func StripNetFields(msg string) string {
+	segments := strings.Split(msg, "/=") // découpe sur /=
+
+	var newSegments []string
+	for _, segment := range segments {
+		// On ignore les segments vides (au début par ex)
+		if segment == "" {
+			continue
+		}
+		// On saute les champs "net=" et "net_sender="
+		if strings.HasPrefix(segment, "net=") || strings.HasPrefix(segment, "net_sender=") || strings.HasPrefix(segment, "net_destinator=") {
+			continue
+		}
+		newSegments = append(newSegments, segment)
+	}
+
+	// On reconstruit le message avec /= séparateur
+	return "/=" + strings.Join(newSegments, "/=")
+}
+
 /*
 FONCTIONS D'AIDE POUR LES HORLOGES
 */

@@ -1,14 +1,14 @@
 package main
 
+import "C"
 import (
-    "fmt"
-    "strconv"
-    "strings"
-    "gospital/utils"
+	"fmt"
+	"gospital/utils"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 )
-
-
 
 func (c *Controller) HandleMessage() {
 	/*Boucle principale de réception et dispatch des messages*/
@@ -18,14 +18,31 @@ func (c *Controller) HandleMessage() {
 
 		time.Sleep(c.Speed * time.Millisecond) //temps d'attente du backend
 		utils.Display_d("main", "received : "+rcvmsg, c.Nom)
+		net := utils.Findval(rcvmsg, "net", c.Nom)
+		if net != "1" { //ON VERIFIE QUE CE N'EST PAS DU BRUIT DE NET
+			if utils.Findval(rcvmsg, "new_site", c.Nom) != "" {
+				c.NbSite++
+				if utils.ExtractIDt(c.NomCourt) != utils.Findval(rcvmsg, "new_site", c.Nom) {
+					msg := "new_site" + utils.Findval(rcvmsg, "new_site", c.Nom)
+					fmt.Println(msg)
+					rcvmsg = utils.StripNetFields(rcvmsg)
+					fmt.Println(rcvmsg)
+				}
+			} else {
 
-		/*MESSAGE DE L'APP*/
-		if c.IsFromApp(rcvmsg) {
-			c.handleAppMessage(rcvmsg)
-			/*MESSAGE DU CTRL*/
+				/*MESSAGE DE L'APP*/
+				rcvmsg = utils.StripNetFields(rcvmsg)
+				if c.IsFromApp(rcvmsg) {
+					c.handleAppMessage(rcvmsg)
+					/*MESSAGE DU CTRL*/
+				} else {
+					c.handleCtrlMessage(rcvmsg)
+				}
+			}
 		} else {
-			c.handleCtrlMessage(rcvmsg)
+			utils.Display_f("BRUIT", "BRUIT NET", c.Nom)
 		}
+
 	}
 }
 
@@ -46,9 +63,9 @@ func (c *Controller) handleSnapshotMessage(msg string) {
 		return
 	}
 
-	if c.Snapshot.Couleur == Blanc { 
+	if c.Snapshot.Couleur == Blanc {
 		//on ne le traite que si on ne la pas déjà traité
-		fmt.Println("askForState")		
+		fmt.Println("askForState")
 		c.EnvoyerSurAnneau(SnapshotMsg, msg)
 	}
 
@@ -60,6 +77,25 @@ func (c *Controller) handleAppMessage(rcvmsg string) {
 	utils.Display_d("main", "TYPE de la demande en provenance de l'app : "+type_msg, c.Nom)
 
 	switch type_msg {
+	case "askToQuit":
+		utils.Display_e("here", "here", "here")
+		msg := utils.Msg_format("type", "askToQuit") +
+			utils.Msg_format("sender", utils.Findval(rcvmsg, "sender", c.Nom)) +
+			utils.Msg_format("pid_app", utils.Findval(rcvmsg, "pid_app", c.Nom)) +
+			utils.Msg_format("pid_ctrl", strconv.Itoa(os.Getpid())) +
+			utils.Msg_format("msg", "1") +
+			utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
+			c.Msg_Horloge()
+		fmt.Println(msg)
+	case "askToLeave":
+		fmt.Println("leave" + utils.Findval(rcvmsg, "sender", c.Nom))
+		msg := utils.Msg_format("type", "askToLeave") +
+			utils.Msg_format("sender", utils.Findval(rcvmsg, "sender", c.Nom)) +
+			utils.Msg_format("msg", "1") +
+			utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
+			c.Msg_Horloge()
+		fmt.Println(msg)
+
 	case "speed":
 		delay := utils.Findval(rcvmsg, "delay", c.Nom)
 		delayInt, _ := strconv.Atoi(delay)
@@ -166,6 +202,26 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 
 	msg_type := utils.Findval(rcvmsg, "type", c.Nom)
 	switch msg_type {
+	case "askToLeave":
+		if utils.App_to_ctrl(sender) != c.NomCourt {
+			//utils.Display_f(string(Requete), fmt.Sprintf("mon tab %#v", c.Tab), c.Nom)
+			app_sender := utils.App_to_ctrl(utils.Findval(rcvmsg, "sender", c.Nom))
+			for key := range c.Tab {
+				if strings.HasPrefix(key, app_sender) {
+					delete(c.Tab, key)
+				}
+			}
+			c.NbSite--
+			//utils.Display_f(string(Requete), fmt.Sprintf("mon tab %#v", c.Tab), c.Nom)
+			fmt.Println("leave" + utils.Findval(rcvmsg, "sender", c.Nom))
+			msg := utils.Msg_format("type", "askToLeave") +
+				utils.Msg_format("sender", utils.Findval(rcvmsg, "sender", c.Nom)) +
+				utils.Msg_format("msg", "1") +
+				utils.Msg_format("couleur", string(c.Snapshot.Couleur)) +
+				c.Msg_Horloge()
+			fmt.Println(msg)
+		}
+
 	case "new_data":
 		utils.Display_f("NOT", "for me", c.Nom)
 	case string(Requete):
@@ -288,9 +344,7 @@ func (c *Controller) handleCtrlMessage(rcvmsg string) {
 			c.SnapshotEnCours = true
 			c.DebutSnapshot()
 		}
-
 	case string(EtatMsg):
-
 		c.ReceptionMsgEtat(rcvmsg)
 	case string(PrePost):
 		c.ReceptionMsgPrepost(rcvmsg)
